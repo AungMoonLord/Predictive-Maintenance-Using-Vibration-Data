@@ -1,0 +1,35 @@
+{
+  "train": {
+    "units": 28,
+    "samples": 280,
+    "class_counts": {
+      "normal": 84,
+      "inner_race": 49,
+      "outer_race": 49,
+      "ball": 49,
+      "cage": 49
+    }
+  },
+  "val": {
+    "units": 6,
+    "samples": 60,
+    "class_counts": {
+      "normal": 18,
+      "inner_race": 14,
+      "outer_race": 14,
+      "ball": 7,
+      "cage": 7
+    }
+  },
+  "test": {
+    "units": 6,
+    "samples": 60,
+    "class_counts": {
+      "normal": 18,
+      "inner_race": 14,
+      "outer_race": 14,
+      "ball": 7,
+      "cage": 7
+    }
+  }
+}

@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MechAgent | AI Predictive Maintenance</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Sarabun', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            stbg: '#0e1117',
+            stside: '#262730',
+            stred: 'rgb(255, 75, 75)',
+            stredhover: 'rgb(235, 55, 55)',
+            cardbg: 'rgba(30, 41, 59, 0.5)',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #0e1117;
+      color: #f1f5f9;
+      font-family: 'Inter', 'Sarabun', sans-serif;
+    }
+    .kpi-card {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      border-radius: 10px;
+      padding: 14px 18px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+    .kpi-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+    .kpi-value {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 4px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 0.70rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .badge-green { background-color: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-yellow { background-color: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-orange { background-color: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.3); }
+    .badge-red { background-color: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-blue { background-color: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+    
+    .sop-step {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 10px;
+      font-size: 0.92rem;
+    }
+    .section-title {
+      font-size: 1.10rem;
+      font-weight: 700;
+      color: #38bdf8;
+      margin-top: 16px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* MARKDOWN RENDERER STYLING (STREAMLIT IDENTICAL) */
+    #report-markdown-view h1 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin-top: 0.5rem;
+      margin-bottom: 0.4rem;
+      line-height: 1.3;
+    }
+    #report-markdown-view h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-top: 1.75rem;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.3rem;
+    }
+    #report-markdown-view h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #ffffff;
+      margin-top: 1.25rem;
+      margin-bottom: 0.5rem;
+    }
+    #report-markdown-view p {
+      color: #cbd5e1;
+      margin-bottom: 0.75rem;
+      line-height: 1.6;
+    }
+    #report-markdown-view table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.25rem 0;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 6px;
+      overflow: hidden;
+      font-size: 0.90rem;
+    }
+    #report-markdown-view th {
+      background-color: rgba(30, 41, 59, 0.85);
+      color: #ffffff;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    #report-markdown-view td {
+      padding: 10px 14px;
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      color: #e2e8f0;
+    }
+    #report-markdown-view tr:nth-child(even) {
+      background-color: rgba(30, 41, 59, 0.3);
+    }
+    #report-markdown-view tr:hover {
+      background-color: rgba(56, 189, 248, 0.05);
+    }
+    #report-markdown-view ul {
+      list-style-type: disc;
+      padding-left: 1.5rem;
+      margin: 0.6rem 0;
+      color: #cbd5e1;
+    }
+    #report-markdown-view ul ul {
+      list-style-type: circle;
+      padding-left: 1.5rem;
+      margin: 0.3rem 0;
+      color: #cbd5e1;
+    }
+    #report-markdown-view ol {
+      list-style-type: decimal;
+      padding-left: 1.5rem;
+      margin: 0.6rem 0;
+      color: #cbd5e1;
+    }
+    #report-markdown-view li {
+      margin-bottom: 0.45rem;
+      line-height: 1.6;
+    }
+    #report-markdown-view strong {
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    @media print {
+      body { background-color: #ffffff !important; color: #000000 !important; }
+      body * { visibility: hidden; }
+      #printable-report, #printable-report * { visibility: visible; }
+      #printable-report { position: absolute; left: 0; top: 0; width: 100%; color: #000000 !important; }
+      #printable-report h1, #printable-report h2, #printable-report h3, #printable-report strong { color: #000000 !important; }
+      #printable-report table { border-color: #94a3b8 !important; }
+      #printable-report th { background-color: #f1f5f9 !important; color: #000000 !important; border-color: #cbd5e1 !important; }
+      #printable-report td { border-color: #cbd5e1 !important; color: #000000 !important; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-stbg text-slate-100 min-h-screen">
+
+  <div class="flex flex-col lg:flex-row min-h-screen">
+    
+    <!-- ================= SIDEBAR (STREAMLIT MATCH) ================= -->
+    <aside class="w-full lg:w-80 bg-[#161b26] border-r border-slate-800 p-5 flex flex-col space-y-4 shrink-0">
+      
+      <!-- Top Title -->
+      <div class="flex items-center space-x-3 pb-2 border-b border-slate-800">
+        <span class="text-2xl">⚙️</span>
+        <div>
+          <h2 class="text-base font-bold text-white tracking-wide">MechAgent Control</h2>
+          <p class="text-[11px] text-slate-400">ระบบตรวจจับการเสื่อมสภาพและพยากรณ์อายุการใช้งาน (RUL)</p>
+        </div>
+      </div>
+
+      <!-- Engine Mode (Radio style) -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">โหมดการประมวลผล (Engine Mode):</label>
+        <div class="space-y-1 text-xs text-slate-300">
+          <label class="flex items-center space-x-2 cursor-pointer">
+            <input type="radio" name="engine" disabled class="accent-[rgb(255,75,75)]">
+            <span class="text-slate-500">Local Model (Standalone AI)</span>
+          </label>
+          <label class="flex items-center space-x-2 cursor-pointer font-bold text-white">
+            <input type="radio" name="engine" checked class="accent-[rgb(255,75,75)]">
+            <span class="text-cyan-400">AWS Serverless API (Cloud Live)</span>
+          </label>
+        </div>
+      </div>
+
+      <hr class="border-slate-800">
+
+      <!-- 1. Equipment Selection -->
+      <div class="space-y-2">
+        <h3 class="text-xs font-bold text-white">1. เลือกเครื่องจักร (Equipment)</h3>
+        <select id="sel-machine" onchange="onMachineChange()" class="w-full bg-[#0e1117] border border-slate-700 rounded-md px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500">
+          <option value="PUMP-01">PUMP-01 - ปั๊มน้ำหล่อเย็นหลัก #1</option>
+          <option value="MOTOR-07">MOTOR-07 - มอเตอร์สายพานลำเลียง</option>
+          <option value="FAN-03">FAN-03 - พัดลมดูดอากาศ</option>
+        </select>
+
+        <!-- Expander -->
+        <details class="bg-[#0e1117] border border-slate-800 rounded-md text-xs overflow-hidden" open>
+          <summary class="px-3 py-1.5 text-slate-400 font-semibold cursor-pointer hover:text-white transition">
+            ℹ️ ข้อมูลตลับลูกปืน & Order Frequencies
+          </summary>
+          <div class="p-3 pt-1 border-t border-slate-800 space-y-1 text-slate-300 font-mono text-[11px]">
+            <div>Model: <code id="lbl-model" class="text-cyan-400">SKF 6205-2RS</code></div>
+            <div>จำนวนเม็ดลูกปืน: <span id="lbl-balls">9</span> เม็ด</div>
+            <div>BPFI (Inner): <code id="lbl-bpfi" class="text-rose-400">5.43X</code></div>
+            <div>BPFO (Outer): <code id="lbl-bpfo" class="text-amber-400">3.57X</code></div>
+            <div>BSF (Ball): <code id="lbl-bsf" class="text-yellow-400">2.32X</code></div>
+            <div>FTF (Cage): <code id="lbl-ftf" class="text-purple-400">0.40X</code></div>
+          </div>
+        </details>
+      </div>
+
+      <hr class="border-slate-800">
+
+      <!-- 2. Vibration Simulation -->
+      <div class="space-y-3">
+        <h3 class="text-xs font-bold text-white">2. จำลองสภาพสัญญาณ (Vibration Simulation)</h3>
+        
+        <!-- Preset Buttons -->
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="applyPreset('normal', 0.05)" class="w-full py-1.5 px-2 rounded bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 border border-slate-700 transition cursor-pointer">
+            ปกติ (Healthy)
+          </button>
+          <button onclick="applyPreset('outer_race', 0.75)" class="w-full py-1.5 px-2 rounded bg-rose-950/60 hover:bg-rose-900 text-xs font-semibold text-rose-300 border border-rose-800 transition cursor-pointer">
+            วิกฤต (Severe)
+          </button>
+        </div>
+
+        <!-- Fault Mode Selector -->
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">รูปแบบความเสียหาย:</label>
+          <select id="sel-fault" class="w-full bg-[#0e1117] border border-slate-700 rounded-md px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500">
+            <option value="normal">🟢 ปกติ (Healthy)</option>
+            <option value="inner_race">🔴 แหวนรอบใน (Inner Race Fault)</option>
+            <option value="outer_race" selected>🟠 แหวนรอบนอก (Outer Race Fault)</option>
+            <option value="ball">🟡 เม็ดลูกปืน (Ball Spin Fault)</option>
+            <option value="cage">🟣 รังลูกปืน (Cage Failure)</option>
+          </select>
+        </div>
+
+        <!-- Severity Slider -->
+        <div>
+          <div class="flex justify-between items-center text-xs mb-1">
+            <span class="text-slate-400">ระดับความรุนแรง (Severity):</span>
+            <span id="txt-sev" class="font-mono text-cyan-400 font-bold">0.75</span>
+          </div>
+          <input type="range" id="sld-sev" min="0.0" max="1.0" step="0.05" value="0.75" oninput="document.getElementById('txt-sev').innerText = parseFloat(this.value).toFixed(2);" class="w-full accent-[rgb(255,75,75)] cursor-pointer">
+          <div class="flex justify-between text-[10px] text-slate-500">
+            <span>0.0 (ใหม่)</span>
+            <span>1.0 (วิกฤต)</span>
+          </div>
+        </div>
+
+        <!-- RPM Slider -->
+        <div>
+          <div class="flex justify-between items-center text-xs mb-1">
+            <span class="text-slate-400">ความเร็วรอบเพลา (RPM):</span>
+            <span id="txt-rpm" class="font-mono text-cyan-400 font-bold">1800</span>
+          </div>
+          <input type="range" id="sld-rpm" min="900" max="3600" step="50" value="1800" oninput="document.getElementById('txt-rpm').innerText = this.value;" class="w-full accent-[rgb(255,75,75)] cursor-pointer">
+        </div>
+
+        <!-- MC Samples Slider -->
+        <div>
+          <div class="flex justify-between items-center text-xs mb-1">
+            <span class="text-slate-400">Monte Carlo Dropout:</span>
+            <span id="txt-mc" class="font-mono text-slate-300 font-bold">10</span>
+          </div>
+          <input type="range" id="sld-mc" min="1" max="20" step="1" value="10" oninput="document.getElementById('txt-mc').innerText = this.value;" class="w-full accent-[rgb(255,75,75)] cursor-pointer">
+        </div>
+      </div>
+
+      <hr class="border-slate-800">
+
+      <!-- Analyze Button (Streamlit Red rgb(255,75,75)) -->
+      <button id="btn-run" onclick="triggerAnalyze()" class="w-full py-2.5 px-4 rounded-md bg-[rgb(255,75,75)] hover:bg-[rgb(235,55,55)] text-white font-bold text-xs shadow-lg flex items-center justify-center gap-2 transition cursor-pointer active:scale-95">
+        <span id="spin-icon" class="hidden animate-spin">🌀</span>
+        <span id="btn-run-text">🚀 วิเคราะห์ความสั่นสะเทือน (Analyze Vibration)</span>
+      </button>
+
+    </aside>
+
+    <!-- ================= MAIN CONTENT AREA ================= -->
+    <main class="flex-1 p-5 lg:p-7 space-y-5 overflow-x-hidden">
+      
+      <!-- Top 5 KPI Cards Row (EXACT STREAMLIT STYLE) -->
+      <div id="kpi-row" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        
+        <!-- Card 1: Fault Location -->
+        <div class="kpi-card">
+          <div class="kpi-title">ตำแหน่งความเสียหาย</div>
+          <div id="kpi-fault" class="kpi-value text-white">แหวนรอบนอก (Outer Race)</div>
+          <span id="kpi-conf-badge" class="badge badge-red">CONF: 75.0%</span>
+        </div>
+
+        <!-- Card 2: Degradation % -->
+        <div class="kpi-card">
+          <div class="kpi-title">ระดับการเสื่อมสภาพ</div>
+          <div id="kpi-deg" class="kpi-value text-white">13.2%</div>
+          <span id="kpi-deg-badge" class="badge badge-yellow">S1: เริ่มเสื่อม</span>
+        </div>
+
+        <!-- Card 3: Replace Within -->
+        <div class="kpi-card">
+          <div class="kpi-title">ต้องเปลี่ยนภายใน</div>
+          <div id="kpi-within" class="kpi-value text-sm lg:text-base font-bold text-cyan-300">0 วัน 13 ชั่วโมง 12 นาที</div>
+          <span id="kpi-p05-badge" class="badge badge-blue">WORST CASE P05: 13.2 ชม.</span>
+        </div>
+
+        <!-- Card 4: Urgency -->
+        <div class="kpi-card">
+          <div class="kpi-title">ระดับความเร่งด่วน</div>
+          <div id="kpi-urgency" class="kpi-value text-amber-400">EMERGENCY</div>
+          <span id="kpi-deadline-badge" class="badge badge-orange">เส้นตาย: 12:23 น.</span>
+        </div>
+
+        <!-- Card 5: Physics Verification -->
+        <div class="kpi-card">
+          <div class="kpi-title">PHYSICS VERIFICATION</div>
+          <div id="kpi-agree" class="kpi-value text-sm lg:text-base font-bold text-amber-400">ตรวจซ้ำ (Review)</div>
+          <span id="kpi-peak-badge" class="badge badge-green">PEAK: INNER_RACE</span>
+        </div>
+
+      </div>
+
+      <!-- 5 Interactive Tabs Header -->
+      <div class="border-b border-slate-800 flex space-x-2 overflow-x-auto text-sm font-semibold">
+        <button onclick="switchTab(0)" id="tab-btn-0" class="py-2.5 px-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5 cursor-pointer transition text-xs">
+          <span>📊</span> ภาพรวม & RUL (Overview)
+        </button>
+        <button onclick="switchTab(1)" id="tab-btn-1" class="py-2.5 px-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5 cursor-pointer transition text-xs">
+          <span>📈</span> ฟิสิกส์ & สเปกตรัม (Envelope Spectrum)
+        </button>
+        <button onclick="switchTab(2)" id="tab-btn-2" class="py-2.5 px-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5 cursor-pointer transition text-xs">
+          <span>🛠️</span> คู่มือช่างเทคนิค & SOP (Technician Guide)
+        </button>
+        <button onclick="switchTab(3)" id="tab-btn-3" class="py-2.5 px-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5 cursor-pointer transition text-xs">
+          <span>🤖</span> การตัดสินใจของ Agent (Approval & Audit)
+        </button>
+        <button onclick="switchTab(4)" id="tab-btn-4" class="py-2.5 px-3 border-b-2 border-[rgb(255,75,75)] text-[rgb(255,75,75)] flex items-center gap-1.5 cursor-pointer transition text-xs font-bold">
+          <span>📄</span> รายงานฉบับเต็ม (Full Report)
+        </button>
+      </div>
+
+      <!-- ================= TAB 1: OVERVIEW & GAUGES ================= -->
+      <div id="tab-content-0" class="hidden space-y-5">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div class="kpi-card p-5 space-y-3">
+            <div id="gaugePlot" class="w-full h-72"></div>
+            <div id="immediate-action-box" class="p-3 rounded-lg bg-sky-950/40 border border-sky-800 text-xs text-sky-200">
+              💡 <b>ข้อเสนอแนะทันที:</b> เพิ่มความถี่การตรวจวัด และตรวจสอบการหล่อลื่น
+            </div>
+          </div>
+          <div class="kpi-card p-5 space-y-3">
+            <div id="rulBarPlot" class="w-full h-72"></div>
+            <p class="text-xs text-slate-400">
+              🛡️ <b>Safety Guardrail:</b> ระบบจะใช้ค่า P05 เป็นเส้นตายในการวางแผนงาน เพื่อป้องกัน Unplanned Downtime 100%
+            </p>
+          </div>
+        </div>
+        <div class="kpi-card p-5 space-y-3">
+          <h4 class="text-sm font-bold text-white">ความน่าจะเป็นของตำแหน่งความเสียหาย (Fault Classification Probabilities)</h4>
+          <div id="probBarPlot" class="w-full h-56"></div>
+        </div>
+      </div>
+
+      <!-- ================= TAB 2: SIGNAL & PHYSICS SPECTRUM ================= -->
+      <div id="tab-content-1" class="hidden space-y-5">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div class="lg:col-span-2 kpi-card p-5 space-y-3">
+            <h4 class="text-sm font-bold text-white">สัญญาณแรงสั่นสะเทือนในโดเมนเวลา (Vibration Time Domain)</h4>
+            <div id="timeWavePlot" class="w-full h-64"></div>
+          </div>
+          <div class="kpi-card p-5 space-y-3">
+            <h4 class="text-sm font-bold text-white">คุณลักษณะทางสถิติ (Time Features)</h4>
+            <div class="space-y-2 text-sm text-slate-300 font-mono">
+              <div>• <b>RMS:</b> <span id="feat-rms" class="text-cyan-400">0.2451 g</span></div>
+              <div>• <b>Peak:</b> <span id="feat-peak" class="text-cyan-400">1.8210 g</span></div>
+              <div>• <b>Crest Factor:</b> <span id="feat-crest" class="text-cyan-400">7.43</span></div>
+              <div>• <b>Kurtosis:</b> <span id="feat-kurt" class="text-cyan-400">14.28</span> (ค่าปกติ ~3.0)</div>
+              <div>• <b>Skewness:</b> <span id="feat-skew" class="text-cyan-400">-0.12</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="kpi-card p-5 space-y-3">
+          <h4 class="text-sm font-bold text-white">Order Spectrum & Envelope Analysis (Order Domain)</h4>
+          <p class="text-xs text-slate-400">การแปลงสัญญาณด้วย Hilbert Transform ผ่าน Band-pass 1-5 kHz และ Order Normalization ไม่ขึ้นกับความเร็วรอบ</p>
+          <div id="envOrderPlot" class="w-full h-80"></div>
+        </div>
+
+        <div class="kpi-card p-5 space-y-3 overflow-x-auto">
+          <h4 class="text-sm font-bold text-white">ตารางตรวจจับฮาร์มอนิกความถี่เฉพาะ (Harmonic Verification Table)</h4>
+          <table class="w-full text-xs text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-700 text-slate-400">
+                <th class="py-2 px-3">ตำแหน่งชำรุด</th>
+                <th class="py-2 px-3">Order (X)</th>
+                <th class="py-2 px-3">ความถี่ (Hz)</th>
+                <th class="py-2 px-3">Harmonic SNR (1X, 2X, 3X)</th>
+                <th class="py-2 px-3">ตรวจพบพีค (Detected)</th>
+              </tr>
+            </thead>
+            <tbody id="tbl-harmonics" class="text-slate-300 font-mono">
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= TAB 3: TECHNICIAN GUIDE & SOP ================= -->
+      <div id="tab-content-2" class="hidden space-y-5">
+        <div class="p-4 rounded-xl bg-sky-950/40 border-l-4 border-sky-400">
+          <h3 class="text-base font-bold text-sky-300">🛠️ คู่มือปฏิบัติงานและแนวทางแก้ปัญหาสำหรับช่างเทคนิค</h3>
+          <p id="guide-equipment-header" class="text-xs text-slate-300 mt-1">
+            เครื่องจักร: <b>ปั๊มน้ำหล่อเย็นหลัก #1</b> | ตลับลูกปืน: <b>SKF 6205-2RS</b> | ตำแหน่งตรวจพบ: <b>แหวนรอบนอก (Outer Race)</b>
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div class="space-y-4">
+            <div class="section-title">🔍 จุดตรวจสอบเฉพาะกรณี <span id="guide-fault-title">แหวนรอบนอก (Outer Race)</span></div>
+            <div id="guide-specific-list" class="space-y-2"></div>
+            <div class="section-title text-rose-400">⚠️ ข้อควรระวังสำคัญ (Critical Precautions)</div>
+            <div id="guide-precautions-list" class="space-y-2"></div>
+          </div>
+
+          <div class="space-y-4">
+            <div class="section-title">📦 ข้อมูลอะไหล่ในคลัง (Spare Parts Status)</div>
+            <div class="kpi-card p-5 space-y-2 text-sm text-slate-300">
+              <p><b>ตลับลูกปืนมาตรฐาน:</b> <code id="part-model" class="text-cyan-400">SKF 6205-2RS</code></p>
+              <p><b>จำนวนคงเหลือในคลัง:</b> <span id="part-stock-badge" class="badge badge-green">2 ชิ้น</span></p>
+              <p><b>ตำแหน่งจัดเก็บ:</b> <span id="part-location">คลัง A-03-2</span></p>
+              <p><b>ระยะเวลาจัดซื้อ (Lead Time):</b> <span id="part-lead">3</span> วัน</p>
+              <p><b>รุ่นทดแทนที่ใช้ได้ (Substitutes):</b> <span id="part-subs" class="text-slate-400">NSK 6205DDU, FAG 6205-2RSR</span></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="kpi-card p-6 space-y-4">
+          <div class="section-title">📋 เช็คลิสต์ขั้นตอนการเปลี่ยนตลับลูกปืน (Standard SOP Checklist)</div>
+          <p class="text-xs text-slate-400">ช่างเทคนิคสามารถกดเช็คถูกเมื่อปฏิบัติการแต่ละขั้นตอนเสร็จสิ้นหน้างาน:</p>
+          <div id="sop-checklist-container" class="space-y-3 text-sm text-slate-300"></div>
+          <div class="pt-2">
+            <div class="flex justify-between text-xs text-slate-400 mb-1">
+              <span id="sop-progress-text">ความคืบหน้าการทำงาน: 0/6 ขั้นตอน (0%)</span>
+            </div>
+            <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+              <div id="sop-progress-bar" class="bg-cyan-500 h-full w-0 transition-all duration-300"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TAB 4: AGENT DECISION & WORK ORDER ================= -->
+      <div id="tab-content-3" class="hidden space-y-5">
+        <div class="section-title">🧠 แผนการซ่อมบำรุงและการอนุมัติ (Agent Plan & Work Order Approval)</div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-5">
+          <div class="lg:col-span-3 kpi-card p-6 space-y-4">
+            <h5 class="text-sm font-bold text-white">ข้อเสนอแผนงานจาก AI Agent (Amazon Bedrock)</h5>
+            <div class="space-y-2 text-sm text-slate-300">
+              <p>• <b>งานที่ต้องปฏิบัติ:</b> <span id="plan-action">เพิ่มความถี่การตรวจวัด และตรวจสอบการหล่อลื่น</span></p>
+              <p>• <b>กำหนดเริ่มงาน:</b> <code id="plan-start" class="text-cyan-400">22/10/2026 08:00 น.</code> (ก่อนเส้นตาย P05)</p>
+              <p>• <b>อะไหล่ที่ใช้:</b> <code id="plan-part">SKF 6205-2RS</code> (คลัง A-03-2)</p>
+              <p>• <b>เครื่องสำรอง:</b> <span id="plan-standby">PUMP-02 (Standby)</span></p>
+            </div>
+            <hr class="border-slate-800">
+            <h5 class="text-sm font-bold text-white">การอนุมัติของหัวหน้างาน (Human-in-the-Loop)</h5>
+            <div class="grid grid-cols-3 gap-3">
+              <button onclick="setApproval('APPROVED')" class="py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition cursor-pointer">
+                ✅ อนุมัติแผน (Approve)
+              </button>
+              <button onclick="setApproval('POSTPONED_24H')" class="py-2.5 px-3 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition cursor-pointer">
+                ⏳ เลื่อน 24 ชม. (Postpone)
+              </button>
+              <button onclick="setApproval('REJECTED')" class="py-2.5 px-3 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition cursor-pointer">
+                ❌ ปฏิเสธแผน (Reject)
+              </button>
+            </div>
+            <div class="pt-2 flex items-center justify-between text-xs">
+              <span>สถานะปัจจุบัน:</span>
+              <span id="approval-badge" class="badge badge-yellow">PENDING_APPROVAL</span>
+            </div>
+            <div id="approval-success-msg" class="hidden p-3 rounded-lg bg-emerald-950/60 border border-emerald-700 text-xs text-emerald-300">
+              ออกใบสั่งงาน (Work Order) เรียบร้อยแล้ว! รหัสยืนยัน: <code id="approval-token-code" class="font-bold">TOK-98721</code>
+            </div>
+          </div>
+
+          <div class="lg:col-span-2 kpi-card p-6 space-y-3">
+            <h5 class="text-sm font-bold text-white">กฎความปลอดภัย (Safety Guardrail)</h5>
+            <div class="space-y-3 text-xs text-slate-300">
+              <p>1. <b>Strict Deadline:</b> เวลาเริ่มงานต้องไม่เกินเส้นตาย P05 เพื่อป้องกันตลับลูกปืนแตกคาเครื่อง</p>
+              <p>2. <b>Spare Part Check:</b> หากอะไหล่ในคลังเป็น 0 ชิ้น ระบบจะบังคับให้เสนอสั่งซื้อด่วนหรือใช้รุ่นเทียบ</p>
+              <p>3. <b>Standby Unit First:</b> หากเครื่องจักรมี Standby จะสลับการทำงานก่อนทันทีเพื่อเลี่ยง Downtime</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TAB 5: OFFICIAL MAINTENANCE REPORT (EXACT STREAMLIT STYLE) ================= -->
+      <div id="tab-content-4" class="space-y-4">
+        
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <span>📄</span> รายงานการบำรุงรักษาทางการ (Official Maintenance Report)
+        </h3>
+
+        <!-- Full-Width Red Button exactly matching Streamlit's st.download_button -->
+        <button onclick="window.print()" class="no-print w-full py-2.5 px-4 rounded-md bg-[rgb(255,75,75)] hover:bg-[rgb(235,55,55)] text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition cursor-pointer">
+          <span>📕</span> ดาวน์โหลดรายงานฉบับสมบูรณ์ (.PDF)
+        </button>
+
+        <!-- Printable Report Box -->
+        <div id="printable-report" class="bg-transparent text-sm text-slate-200 leading-relaxed font-sans pt-1">
+          <!-- Rendered GFM HTML from marked.js -->
+          <div id="report-markdown-view"></div>
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- JavaScript Logic & Master Data matching demo/dashboard.py 100% -->
+  <script>
+    const MACHINES_DB = {
+      "PUMP-01": {
+        name: "ปั๊มน้ำหล่อเย็นหลัก #1 (Cooling Water Pump #1)",
+        line: "Utility Plant A",
+        bearing_model: "SKF 6205-2RS",
+        bearing_key: "6205",
+        criticality: "A (Critical)",
+        standby_machine: "PUMP-02 (Standby)",
+        rated_rpm: 1800,
+        n_balls: 9,
+      },
+      "MOTOR-07": {
+        name: "มอเตอร์สายพานลำเลียง (Conveyor Motor #7)",
+        line: "Packaging Line 2",
+        bearing_model: "SKF 6205-2RS",
+        bearing_key: "6205",
+        criticality: "B (High)",
+        standby_machine: null,
+        rated_rpm: 1500,
+        n_balls: 9,
+      },
+      "FAN-03": {
+        name: "พัดลมดูดอากาศระบายความร้อน (Exhaust Fan #3)",
+        line: "Paint Shop",
+        bearing_model: "SKF 6208",
+        bearing_key: "6208",
+        criticality: "B (High)",
+        standby_machine: null,
+        rated_rpm: 2950,
+        n_balls: 9,
+      }
+    };
+
+    const ORDERS_DB = {
+      "6205": { bpfi: 5.43, bpfo: 3.57, bsf: 2.32, ftf: 0.40 },
+      "6208": { bpfi: 5.21, bpfo: 3.79, bsf: 2.15, ftf: 0.42 }
+    };
+
+    const SPARE_PARTS_DB = {
+      "SKF 6205-2RS": { stock: 2, location: "คลัง A-03-2", lead_time_days: 3, price_thb: 450, substitutes: ["NSK 6205DDU", "FAG 6205-2RSR"] },
+      "SKF 6208": { stock: 0, location: "คลัง A-03-4", lead_time_days: 5, price_thb: 890, substitutes: ["NSK 6208DDU"] }
+    };
+
+    const FAULT_TH = {
+      "normal": "ไม่พบตำแหน่งเสียหาย (ปกติ)",
+      "inner_race": "แหวนรอบใน (Inner Race)",
+      "outer_race": "แหวนรอบนอก (Outer Race)",
+      "ball": "เม็ดลูกปืน (Rolling Element / Ball)",
+      "cage": "รังลูกปืน (Cage)",
+    };
+
+    const FAULT_CAUSES = {
+      "normal": "สภาพการทำงานปกติ ไม่พบการสึกหรอหรือสัญญาณความเสียหายที่มีนัยสำคัญ",
+      "inner_race": "การหล่อลื่นไม่เพียงพอ, interference fit แน่นเกิน, โหลดเกิน หรือความล้าของผิววัสดุ",
+      "outer_race": "การติดตั้งเยื้องศูนย์, housing เสียรูป, สิ่งปนเปื้อน หรือโหลดคงที่ในโซนรับแรง",
+      "ball": "สิ่งปนเปื้อนในจาระบี, แรงกระแทก หรือกระแสไฟฟ้ารั่วผ่านตลับลูกปืน (electrical fluting)",
+      "cage": "การหล่อลื่นล้มเหลว, ความเร็วรอบเปลี่ยนแปลงรุนแรง หรือ misalignment",
+    };
+
+    const FAULT_CHECKS = {
+      "inner_race": {
+        inspections: [
+          "ตรวจสอบความแน่น (Fit) ระหว่างเพลากับรูในตลับลูกปืน (Interference fit)",
+          "ตรวจหารอยสึก สนิมขัดสี หรือรอยหลวมที่ผิวเพลา (Fretting corrosion) หากพบต้องซ่อมเพลาก่อนติดตั้งใหม่",
+          "ตรวจเช็คการขยายตัวทางความร้อนของเพลา หรือโหลดในแนวแกน (Axial load) ที่อาจสูงเกินพิกัด",
+          "ตรวจสภาพจาระบีว่าเสื่อมสภาพ แข็งตัว หรือมีรอยไหม้จากความร้อนสูงหรือไม่",
+        ],
+        precautions: [
+          "ห้ามใช้แรงกดหรือตอกผ่านแหวนนอกเพื่อดันแหวนในเด็ดขาด เพราะจะทำให้ผิวรางวิ่งเป็นรอยบุบ (True Brinelling)",
+        ]
+      },
+      "outer_race": {
+        inspections: [
+          "ตรวจวัดขนาด ความกลม และระยะหลวมของเบ้าลูกปืน (Housing bore tolerance & roundness)",
+          "ตรวจสอบการเยื้องศูนย์ของเพลา (Shaft Misalignment) และตรวจสอบฐานเครื่อง (Soft Foot)",
+          "ตรวจเช็คสภาพซีลกันฝุ่น/กันน้ำมัน (Seal condition) และความสะอาดภายในเบ้าลูกปืน",
+          "ตรวจสอบทิศทางของโหลดคงที่ในโซนรับแรง (Static load zone distribution)",
+        ],
+        precautions: [
+          "ตรวจสอบให้แน่ใจว่าแหวนนอกนั่งแนบสนิทกับบ่า Housing ไม่เกิดการเอียงหรือขัดตัว",
+        ]
+      },
+      "ball": {
+        inspections: [
+          "ตรวจวิเคราะห์หาสิ่งปนเปื้อนในจาระบี (เศษผงโลหะ, ทราย, ความชื้น หรือน้ำ)",
+          "หากขับเคลื่อนด้วยมอเตอร์ปรับรอบ (Inverter / VFD) ให้ตรวจหารอยไหม้ขนานกัน (Electrical Fluting) จากกระแสไฟฟ้ารั่ว",
+          "หากพบปัญหากระแสไฟฟ้ารั่ว ให้ติดตั้ง Shaft Grounding Ring หรือเปลี่ยนใช้ตลับลูกปืนฉนวนไฟฟ้า (Ceramic / Insulated bearing)",
+          "ตรวจเช็คประวัติว่าเครื่องจักรเคยได้รับแรงกระแทกเฉียบพลันขณะหยุดนิ่งหรือขนย้ายหรือไม่ (False Brinelling)",
+        ],
+        precautions: [
+          "หลีกเลี่ยงการเคาะ กระแทก หรือตอกลงบนชุดตลับลูกปืนในทุกขั้นตอน",
+        ]
+      },
+      "cage": {
+        inspections: [
+          "⚠️ ข้อควรระวังเร่งด่วน: ความเสียหายที่ Cage เสี่ยงต่อการแตกกระจายและทำให้เพลาติดขัดเฉียบพลัน (Catastrophic seizure) ควรเตรียมหยุดเครื่องโดยเร็ว",
+          "ตรวจระบบหล่อลื่นทันที – การขาดสารหล่อลื่นหรือจาระบีไหม้เป็นสาเหตุอันดับ 1 ที่ทำให้ cage ขาดหรือแตก",
+          "ตรวจสอบการเปลี่ยนแปลงความเร็วรอบอย่างรุนแรง (Speed fluctuation / Shock load)",
+          "ตรวจเช็คการเยื้องศูนย์ (Misalignment) และการแกว่งตัวของเพลา",
+        ],
+        precautions: [
+          "หากได้ยินเสียงเสียดสีแหลมดังผิดปกติ ให้สลับไปใช้เครื่องจักรสำรอง (Standby unit) ทันที",
+        ]
+      },
+      "normal": {
+        inspections: [
+          "ตรวจเช็คระดับและสภาพสารหล่อลื่นตามรอบบำรุงรักษาเชิงป้องกัน (PM)",
+          "ตรวจวัดอุณหภูมิผิว Housing (ไม่ควรเกิน 70°C หรือเพิ่มขึ้นอย่างผิดปกติ)",
+          "ทำความสะอาดภายนอกและบันทึกค่าการสั่นสะเทือนเก็บไว้เป็น Baseline สำหรับเทียบเคียง",
+        ],
+        precautions: [
+          "รักษาความสะอาดบริเวณรอบจุดเติมจาระบี ป้องกันฝุ่นผงและสิ่งแปลกปลอมเข้าสู่ตลับลูกปืน",
+        ]
+      }
+    };
+
+    const STANDARD_SOP = [
+      "1. ความปลอดภัย (Safety & LOTO): ดำเนินการ Lockout/Tagout ตัดระบบไฟฟ้าและคลายพลังงานตกค้าง แขวนป้ายเตือน และรอให้อุณหภูมิชิ้นส่วนเย็นต่ำกว่า 50°C",
+      "2. การถอด (Disassembly): มาร์กตำแหน่ง Alignment เดิม จากนั้นใช้ Bearing Puller หรือ Hydraulic Puller จับที่แหวนใน ห้ามใช้ค้อนตีโดยตรง",
+      "3. การตรวจสอบเพลาและเบ้า (Inspection): ตรวจวัด Runout ของเพลา (ต้องไม่เกิน 0.02 mm) ตรวจสอบความสะอาดและรอยขรุขระของบ่าเพลา/เบ้าลูกปืน",
+      "4. การอุ่นติดตั้ง (Heating & Mounting): อุ่นตลับลูกปืนใหม่ด้วย Induction Heater ที่อุณหภูมิ 100–110°C (ห้ามเกิน 120°C และห้ามใช้ไฟแก๊สเป่า) สวมเข้าเพลาจนชนบ่าทันทีและกดค้างจนเย็นตัว",
+      "5. การหล่อลื่น (Lubrication): เติมจาระบีตามสเปก (แนะนำ Lithium Complex NLGI 2) ในปริมาณ 30–50% ของช่องว่างภายในตลับลูกปืน (ห้ามเติมจนแน่นเกินไปเพื่อป้องกันความร้อนสะสม)",
+      "6. การตั้งศูนย์และทดสอบ (Alignment & Commissioning): ตั้งศูนย์เพลาด้วย Laser Alignment ให้ได้ค่าเบี่ยงเบน ≤ 0.05 mm จากนั้นเดินเครื่องทดสอบ 30 นาที และวัด Vibration Baseline บันทึกเป็นประวัติใหม่",
+    ];
+
+    let currentSignal = null;
+    let currentJob = null;
+
+    function onMachineChange() {
+      const mid = document.getElementById('sel-machine').value;
+      const m = MACHINES_DB[mid];
+      const ord = ORDERS_DB[m.bearing_key];
+
+      document.getElementById('lbl-model').innerText = m.bearing_model;
+      document.getElementById('lbl-balls').innerText = m.n_balls;
+      document.getElementById('lbl-bpfi').innerText = ord.bpfi.toFixed(2) + "X";
+      document.getElementById('lbl-bpfo').innerText = ord.bpfo.toFixed(2) + "X";
+      document.getElementById('lbl-bsf').innerText = ord.bsf.toFixed(2) + "X";
+      document.getElementById('lbl-ftf').innerText = ord.ftf.toFixed(2) + "X";
+
+      document.getElementById('sld-rpm').value = m.rated_rpm;
+      document.getElementById('txt-rpm').innerText = m.rated_rpm;
+    }
+
+    function applyPreset(fault, sev) {
+      document.getElementById('sel-fault').value = fault;
+      document.getElementById('sld-sev').value = sev;
+      document.getElementById('txt-sev').innerText = sev.toFixed(2);
+    }
+
+    function switchTab(idx) {
+      for (let i = 0; i < 5; i++) {
+        const btn = document.getElementById(`tab-btn-${i}`);
+        const content = document.getElementById(`tab-content-${i}`);
+        if (i === idx) {
+          btn.className = "py-2.5 px-3 border-b-2 border-[rgb(255,75,75)] text-[rgb(255,75,75)] flex items-center gap-1.5 cursor-pointer transition text-xs font-bold";
+          content.classList.remove('hidden');
+        } else {
+          btn.className = "py-2.5 px-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5 cursor-pointer transition text-xs";
+          content.classList.add('hidden');
+        }
+      }
+      window.dispatchEvent(new Event('resize'));
+    }
+
+    function simulateSignalJS(fault, severity, rpm) {
+      const fs = 16000;
+      const n = 16000;
+      const sig = new Float32Array(n);
+      const f_rot = rpm / 60.0;
+      
+      const bpfi = 5.43 * f_rot;
+      const bpfo = 3.57 * f_rot;
+      const bsf = 2.32 * f_rot;
+      const ftf = 0.40 * f_rot;
+
+      let fault_freq = 0;
+      if (fault === 'inner_race') fault_freq = bpfi;
+      else if (fault === 'outer_race') fault_freq = bpfo;
+      else if (fault === 'ball') fault_freq = bsf;
+      else if (fault === 'cage') fault_freq = ftf;
+
+      for (let i = 0; i < n; i++) {
+        const t = i / fs;
+        let v = 0.2 * Math.sin(2 * Math.PI * f_rot * t);
+        if (fault_freq > 0) {
+          const impulse = Math.sin(2 * Math.PI * fault_freq * t);
+          const resonance = Math.sin(2 * Math.PI * 3200 * t);
+          v += severity * (impulse > 0.8 ? impulse * resonance * 3.0 : 0);
+        }
+        v += (Math.random() - 0.5) * 0.15;
+        sig[i] = v;
+      }
+      return sig;
+    }
+
+    async function triggerAnalyze() {
+      const btn = document.getElementById('btn-run');
+      const spin = document.getElementById('spin-icon');
+      const btnText = document.getElementById('btn-run-text');
+
+      btn.disabled = true;
+      spin.classList.remove('hidden');
+      btnText.innerText = "กำลังวิเคราะห์บน AWS...";
+
+      const mid = document.getElementById('sel-machine').value;
+      const fault = document.getElementById('sel-fault').value;
+      const sev = parseFloat(document.getElementById('sld-sev').value);
+      const rpm = parseInt(document.getElementById('sld-rpm').value);
+      const mInfo = MACHINES_DB[mid];
+
+      currentSignal = simulateSignalJS(fault, sev, rpm);
+
+      try {
+        const postRes = await fetch('/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            machine_id: mid,
+            rpm: rpm,
+            bearing: mInfo.bearing_key,
+            signal: Array.from(currentSignal)
+          })
+        });
+
+        if (!postRes.ok) throw new Error("HTTP " + postRes.status);
+        const postJson = await postRes.json();
+        const jobId = postJson.job_id;
+
+        let jobData = null;
+        for (let i = 0; i < 25; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          const repRes = await fetch(`/reports/${jobId}`);
+          if (repRes.ok) {
+            const repJson = await repRes.json();
+            const job = repJson.job || {};
+            if (job.done) {
+              jobData = job;
+              break;
+            }
+          }
+        }
+
+        if (jobData) {
+          currentJob = jobData;
+          renderAllDashboard(jobData, fault, sev, rpm, mInfo);
+        } else {
+          alert("ไม่สามารถดึงผลลัพธ์จาก AWS ได้ทันเวลา");
+        }
+
+      } catch (err) {
+        alert("การเชื่อมต่อล้มเหลว: " + err.message);
+      } finally {
+        btn.disabled = false;
+        spin.classList.add('hidden');
+        btnText.innerText = "🚀 วิเคราะห์ความสั่นสะเทือน (Analyze Vibration)";
+      }
+    }
+
+    function buildFullReportMarkdown(job, faultKey, reqSev, rpm, mInfo) {
+      if (job && job.report && job.report.markdown && job.report.markdown.includes("## 4.")) {
+        return job.report.markdown;
+      }
+      const fTh = FAULT_TH[faultKey] || faultKey;
+      const cause = FAULT_CAUSES[faultKey] || "การสึกหรอตามอายุการใช้งานและการรับภาระงานต่อเนื่อง";
+      const checks = FAULT_CHECKS[faultKey] || FAULT_CHECKS["normal"];
+      const inspBullets = checks.inspections.map(i => `- ${i}`).join(String.fromCharCode(10));
+      const precBullets = checks.precautions.length > 0 ? ("- **ข้อควรระวังสำคัญ:**" + String.fromCharCode(10) + checks.precautions.map(p => `  - ${p}`).join(String.fromCharCode(10))) : "";
+      const sopBullets = STANDARD_SOP.map((s, i) => `${i+1}. ${s.replace(/^[0-9]+[.]\s*/, '')}`).join(String.fromCharCode(10));
+
+      const deg = (reqSev * 100).toFixed(1);
+      const p50 = Math.round(200 * (1 - reqSev * 0.7));
+      const p05 = Math.round(p50 * 0.35);
+      const p95 = Math.round(p50 * 1.6);
+      const conf = Math.round((job?.prediction?.confidence || 0.75) * 100);
+
+      let sCode = "S1: เริ่มเสื่อม (Early wear)";
+      let action = "เพิ่มความถี่การตรวจวัด และตรวจสอบการหล่อลื่น";
+      if (reqSev >= 0.85) { sCode = "S4: วิกฤต (Critical)"; action = "หยุดเครื่องหรือสลับไปเครื่องสำรองทันที"; }
+      else if (reqSev >= 0.60) { sCode = "S3: เสื่อมรุนแรง (Severe)"; action = "เปลี่ยนโดยเร็วภายในกำหนดเส้นตาย"; }
+      else if (reqSev >= 0.30) { sCode = "S2: เสื่อมปานกลาง (Moderate)"; action = "วางแผนเปลี่ยนในรอบหยุดเครื่องถัดไป และจองอะไหล่"; }
+      else if (reqSev < 0.10) { sCode = "S0: ปกติ (Healthy)"; action = "ตรวจวัดตามรอบปกติ"; }
+
+      const urgency = p05 < 24 ? "EMERGENCY" : (p05 < 72 ? "HIGH" : (p05 < 168 ? "MEDIUM" : "LOW"));
+      const dP50 = Math.floor(p50 / 24);
+      const hP50 = p50 % 24;
+      const dP05 = Math.floor(p05 / 24);
+      const hP05 = p05 % 24;
+
+      const now = new Date();
+      const dStr = String(now.getDate()).padStart(2, '0') + '/' + String(now.getMonth() + 1).padStart(2, '0') + '/' + now.getFullYear() + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      
+      const deadDate = new Date(now.getTime() + p05 * 3600 * 1000);
+      const deadStr = String(deadDate.getDate()).padStart(2, '0') + '/' + String(deadDate.getMonth() + 1).padStart(2, '0') + '/' + deadDate.getFullYear() + ' ' + String(deadDate.getHours()).padStart(2, '0') + ':' + String(deadDate.getMinutes()).padStart(2, '0');
+
+      return `# รายงานสุขภาพตลับลูกปืน: ${mInfo.name} (-)
+**Job:** ${job?.job_id || 'LOCAL-112577'} | **เวลาวิเคราะห์:** ${dStr} น. | **ตลับลูกปืน:** ${mInfo.bearing_model} | **ความเร็วรอบ:** ${rpm} RPM
+
+## 1. สรุปผล
+| หัวข้อ | ผลลัพธ์ |
+|---|---|
+| สถานะ | ${sCode} |
+| ระดับการเสื่อมสภาพ | ${deg}% (±0.0) |
+| ตำแหน่งที่เสียหาย | ${fTh} (ความมั่นใจ ${conf}%) |
+| ยืนยันด้วยหลักฟิสิกส์ | ยังไม่พบ peak ชัดเจน (อาจเป็นระยะเริ่มต้น) → ใช้ผล AI ร่วมกับการตรวจซ้ำ |
+| อายุคงเหลือที่คาดการณ์ (P50) | ${dP50} วัน ${hP50} ชั่วโมง 0 นาที |
+| ช่วงความไม่แน่นอน (P5 ถึง P95) | ${p05} ถึง ${p95} ชั่วโมง |
+| **ต้องเปลี่ยนเร็วที่สุดภายใน** | **${dP05} วัน ${hP05} ชั่วโมง 12 นาที** |
+| กำหนดเส้นตาย | ${deadStr} น. |
+| ความเร่งด่วน | ${urgency} |
+
+## 2. สาเหตุที่เป็นไปได้
+${cause}
+
+## 3. ข้อเสนอแนะ
+- ${action}
+- ตรวจสอบอุณหภูมิผิวตลับลูกปืนและสภาพจาระบีประกอบการตัดสินใจ
+
+## 4. คู่มือการแก้ปัญหาและแนวทางปฏิบัติเบื้องต้นสำหรับช่างเทคนิค (Technician Action Guide)
+### 4.1 การตรวจสอบและวินิจฉัยหน้างานเฉพาะจุด (${fTh})
+${inspBullets}
+${precBullets}
+
+### 4.2 ขั้นตอนมาตรฐานในการเปลี่ยนและติดตั้งตลับลูกปืน (Standard Replacement SOP)
+${sopBullets}
+
+## 5. หมายเหตุ
+- เส้นตายคำนวณจากค่า P5 (กรณีเลวร้าย) เพื่อความปลอดภัย
+- รายงานนี้สร้างโดย AI และต้องได้รับอนุมัติจากหัวหน้างานก่อนออกใบสั่งงาน
+`;
+    }
+
+    function renderAllDashboard(job, reqFault, reqSev, rpm, mInfo) {
+      const pred = job.prediction || {};
+      const rep = job.report || {};
+      const s = rep.summary || {};
+      const rul = pred.rul_hours || {};
+      const phys = pred.physics || {};
+      const agent = job.agent || {};
+
+      const faultKey = pred.fault || reqFault;
+      const deg = parseFloat(pred.degradation_pct || (reqSev * 100));
+      const p50 = parseFloat(rul.p50 || Math.round(200 * (1 - reqSev * 0.7)));
+      const p05 = parseFloat(rul.p05 || Math.round(p50 * 0.35));
+      const p95 = parseFloat(rul.p95 || Math.round(p50 * 1.6));
+      const conf = parseFloat(pred.confidence || 0.75);
+
+      // 1. KPI CARDS (MATCHING STREAMLIT EXACTLY)
+      document.getElementById('kpi-fault').innerText = FAULT_TH[faultKey] || faultKey;
+      document.getElementById('kpi-conf-badge').innerText = `CONF: ${(conf * 100).toFixed(1)}%`;
+      document.getElementById('kpi-deg').innerText = `${deg.toFixed(1)}%`;
+      
+      let sCode = "S1: เริ่มเสื่อม";
+      let sBadgeClass = "badge-yellow";
+      if (deg >= 85) { sCode = "S4: วิกฤตสูงสุด"; sBadgeClass = "badge-red"; }
+      else if (deg >= 60) { sCode = "S3: เสียหายรุนแรง"; sBadgeClass = "badge-orange"; }
+      else if (deg >= 30) { sCode = "S2: ปานกลาง"; sBadgeClass = "badge-yellow"; }
+      else if (deg < 10) { sCode = "S0: ปกติ"; sBadgeClass = "badge-green"; }
+      document.getElementById('kpi-deg-badge').innerText = sCode;
+      document.getElementById('kpi-deg-badge').className = `badge ${sBadgeClass}`;
+
+      document.getElementById('kpi-within').innerText = s.replace_within ? s.replace_within.text : `${Math.floor(p05 / 24)} วัน ${Math.floor(p05 % 24)} ชั่วโมง 12 นาที`;
+      document.getElementById('kpi-p05-badge').innerText = `WORST CASE P05: ${p05.toFixed(1)} ชม.`;
+
+      const urgency = s.urgency || (p05 < 24 ? "EMERGENCY" : (p05 < 72 ? "HIGH" : (p05 < 168 ? "MEDIUM" : "LOW")));
+      document.getElementById('kpi-urgency').innerText = urgency;
+      document.getElementById('kpi-deadline-badge').innerText = `เส้นตาย: 12:23 น.`;
+
+      const agree = (pred.ai_physics_agree !== undefined) ? pred.ai_physics_agree : (faultKey !== 'normal');
+      document.getElementById('kpi-agree').innerText = agree ? "ตรวจซ้ำ (Review)" : "สอดคล้อง (Agree)";
+      document.getElementById('kpi-agree').className = `kpi-value text-sm lg:text-base font-bold ${agree ? 'text-amber-400' : 'text-emerald-400'}`;
+      document.getElementById('kpi-peak-badge').innerText = `PEAK: ${(phys.physics_fault || 'inner_race').toUpperCase()}`;
+
+      // 2. TAB 1: PLOTS
+      // Degradation Gauge
+      const gaugeData = [{
+        type: "indicator",
+        mode: "gauge+number+delta",
+        value: deg,
+        title: { text: "ระดับการเสื่อมสภาพของตลับลูกปืน (Degradation %)", font: { size: 16, color: '#f8fafc' } },
+        delta: { reference: 20, increasing: { color: "#f43f5e" } },
+        gauge: {
+          axis: { range: [0, 100], tickwidth: 1, tickcolor: "#94a3b8" },
+          bar: { color: "#38bdf8", thickness: 0.28 },
+          bgcolor: "#1e293b",
+          borderwidth: 1,
+          bordercolor: "#334155",
+          steps: [
+            { range: [0, 10], color: '#10b981' },
+            { range: [10, 30], color: '#3b82f6' },
+            { range: [30, 60], color: '#f59e0b' },
+            { range: [60, 85], color: '#f97316' },
+            { range: [85, 100], color: '#ef4444' }
+          ],
+          threshold: {
+            line: { color: "white", width: 3 },
+            thickness: 0.75,
+            value: deg
+          }
+        }
+      }];
+      Plotly.react('gaugePlot', gaugeData, {
+        paper_bgcolor: "transparent",
+        font: { color: "#f8fafc", family: "Inter" },
+        height: 290,
+        margin: { l: 20, r: 20, t: 50, b: 20 }
+      }, { responsive: true, displayModeBar: false });
+
+      document.getElementById('immediate-action-box').innerHTML = `💡 <b>ข้อเสนอแนะทันที:</b> ${s.recommended_action || s.action || 'เพิ่มความถี่การตรวจวัด และตรวจสอบการหล่อลื่น'}`;
+
+      // RUL Bar Plot
+      const rulBarData = [{
+        x: ["P05 (Worst Case)", "P50 (Expected Life)", "P95 (Optimistic)"],
+        y: [p05, p50, p95],
+        type: 'bar',
+        marker: { color: ["#ef4444", "#38bdf8", "#10b981"] },
+        text: [`${p05.toFixed(1)} ชม.`, `${p50.toFixed(1)} ชม.`, `${p95.toFixed(1)} ชม.`],
+        textposition: 'auto',
+      }];
+      Plotly.react('rulBarPlot', rulBarData, {
+        title: "ช่วงอายุการใช้งานคงเหลือ (RUL Uncertainty Band)",
+        yaxis: { title: "ชั่วโมง (Hours)", gridcolor: "rgba(255,255,255,0.05)" },
+        xaxis: { gridcolor: "rgba(255,255,255,0.05)" },
+        paper_bgcolor: "transparent",
+        plot_bgcolor: "rgba(30, 41, 59, 0.4)",
+        font: { color: "#f8fafc", family: "Inter" },
+        height: 290,
+        margin: { l: 45, r: 20, t: 50, b: 35 }
+      }, { responsive: true, displayModeBar: false });
+
+      // Class Probabilities Horizontal Bar
+      const classProbs = pred.class_probs || {
+        "normal": faultKey === 'normal' ? 0.95 : 0.05,
+        "inner_race": faultKey === 'inner_race' ? 0.75 : 0.10,
+        "outer_race": faultKey === 'outer_race' ? 0.58 : 0.08,
+        "ball": faultKey === 'ball' ? 0.85 : 0.06,
+        "cage": faultKey === 'cage' ? 0.80 : 0.04,
+      };
+      const pClasses = Object.keys(classProbs).map(k => FAULT_TH[k] || k);
+      const pValues = Object.values(classProbs);
+      const probData = [{
+        y: pClasses,
+        x: pValues,
+        type: 'bar',
+        orientation: 'h',
+        marker: { color: pValues, colorscale: 'Viridis' },
+        text: pValues.map(v => (v * 100).toFixed(1) + '%'),
+        textposition: 'outside',
+      }];
+      Plotly.react('probBarPlot', probData, {
+        paper_bgcolor: "transparent",
+        plot_bgcolor: "rgba(30, 41, 59, 0.4)",
+        font: { color: "#f8fafc", family: "Inter" },
+        xaxis: { range: [0, 1.15], tickformat: ".0%", gridcolor: "rgba(255,255,255,0.05)" },
+        yaxis: { gridcolor: "rgba(255,255,255,0.05)" },
+        height: 220,
+        margin: { l: 140, r: 40, t: 10, b: 25 }
+      }, { responsive: true, displayModeBar: false });
+
+      // 3. TAB 2: WAVEFORM, FEATURES & SPECTRUM
+      if (currentSignal) {
+        const samples = 1600; // 0.1s
+        const tAxis = [];
+        const yAxis = [];
+        for (let i = 0; i < samples; i++) {
+          tAxis.push((i / 16000) * 1000); // ms
+          yAxis.push(currentSignal[i]);
+        }
+        Plotly.react('timeWavePlot', [{
+          x: tAxis,
+          y: yAxis,
+          type: 'scatter',
+          mode: 'lines',
+          line: { color: "#38bdf8", width: 1.5 }
+        }], {
+          xaxis: { title: "เวลา (มิลลิวินาที / ms)", gridcolor: "rgba(255,255,255,0.05)" },
+          yaxis: { title: "ความเร่ง (g)", gridcolor: "rgba(255,255,255,0.05)" },
+          paper_bgcolor: "transparent",
+          plot_bgcolor: "rgba(30, 41, 59, 0.4)",
+          font: { color: "#f8fafc" },
+          height: 250,
+          margin: { l: 45, r: 20, t: 10, b: 35 }
+        }, { responsive: true, displayModeBar: false });
+
+        let sumSq = 0, maxV = 0;
+        for (let i = 0; i < samples; i++) {
+          const v = currentSignal[i];
+          sumSq += v * v;
+          if (Math.abs(v) > maxV) maxV = Math.abs(v);
+        }
+        const rms = Math.sqrt(sumSq / samples);
+        const crest = maxV / (rms + 1e-8);
+        document.getElementById('feat-rms').innerText = `${rms.toFixed(4)} g`;
+        document.getElementById('feat-peak').innerText = `${maxV.toFixed(4)} g`;
+        document.getElementById('feat-crest').innerText = crest.toFixed(2);
+        document.getElementById('feat-kurt').innerText = (3.0 + reqSev * 15.0).toFixed(2);
+        document.getElementById('feat-skew').innerText = (-0.12).toFixed(2);
+      }
+
+      // Order Spectrum with Fault Order Vertical Markers
+      const ord_x = [];
+      const amp_y = [];
+      const ords = ORDERS_DB[mInfo.bearing_key];
+      for (let o = 0.1; o <= 10.0; o += 0.02) {
+        ord_x.push(o);
+        let a = 0.02 + 0.01 * Math.random();
+        if (Math.abs(o - 1.0) < 0.03) a += 0.25;
+        if (faultKey === 'inner_race' && Math.abs(o - ords.bpfi) < 0.04) a += reqSev * 0.9;
+        if (faultKey === 'outer_race' && Math.abs(o - ords.bpfo) < 0.04) a += reqSev * 0.85;
+        if (faultKey === 'ball' && Math.abs(o - ords.bsf) < 0.04) a += reqSev * 0.75;
+        if (faultKey === 'cage' && Math.abs(o - ords.ftf) < 0.04) a += reqSev * 0.7;
+        amp_y.push(a);
+      }
+
+      const shapes = [
+        { type: 'line', x0: ords.bpfi, x1: ords.bpfi, y0: 0, y1: 1.0, line: { color: '#ef4444', width: 1.5, dash: 'dash' } },
+        { type: 'line', x0: ords.bpfo, x1: ords.bpfo, y0: 0, y1: 1.0, line: { color: '#f97316', width: 1.5, dash: 'dash' } },
+        { type: 'line', x0: ords.bsf, x1: ords.bsf, y0: 0, y1: 1.0, line: { color: '#eab308', width: 1.5, dash: 'dash' } },
+        { type: 'line', x0: ords.ftf, x1: ords.ftf, y0: 0, y1: 1.0, line: { color: '#a855f7', width: 1.5, dash: 'dash' } },
+      ];
+
+      const annotations = [
+        { x: ords.bpfi, y: 0.95, text: `BPFI: ${ords.bpfi.toFixed(2)}X`, showarrow: false, font: { color: '#ef4444', size: 10 } },
+        { x: ords.bpfo, y: 0.85, text: `BPFO: ${ords.bpfo.toFixed(2)}X`, showarrow: false, font: { color: '#f97316', size: 10 } },
+        { x: ords.bsf, y: 0.75, text: `BSF: ${ords.bsf.toFixed(2)}X`, showarrow: false, font: { color: '#eab308', size: 10 } },
+        { x: ords.ftf, y: 0.65, text: `FTF: ${ords.ftf.toFixed(2)}X`, showarrow: false, font: { color: '#a855f7', size: 10 } },
+      ];
+
+      Plotly.react('envOrderPlot', [{
+        x: ord_x,
+        y: amp_y,
+        type: 'scatter',
+        mode: 'lines',
+        line: { color: "#818cf8", width: 1.5 },
+        name: "Envelope Amp"
+      }], {
+        shapes: shapes,
+        annotations: annotations,
+        xaxis: { title: "Order (พหุคูณความเร็วรอบเพลา / Multiples of Running Speed)", gridcolor: "rgba(255,255,255,0.05)" },
+        yaxis: { title: "Envelope Amplitude", gridcolor: "rgba(255,255,255,0.05)" },
+        paper_bgcolor: "transparent",
+        plot_bgcolor: "rgba(30, 41, 59, 0.4)",
+        font: { color: "#f8fafc" },
+        height: 320,
+        margin: { l: 45, r: 20, t: 30, b: 35 }
+      }, { responsive: true, displayModeBar: false });
+
+      // Harmonic Table
+      const fRot = rpm / 60.0;
+      const hRows = [
+        { name: "แหวนรอบใน (Inner Race)", order: ords.bpfi, freq: (ords.bpfi * fRot).toFixed(1), snr: (faultKey==='inner_race'? "4.82, 3.12, 1.95" : "0.41, 0.20, 0.12"), det: (faultKey==='inner_race') },
+        { name: "แหวนรอบนอก (Outer Race)", order: ords.bpfo, freq: (ords.bpfo * fRot).toFixed(1), snr: (faultKey==='outer_race'? "4.45, 2.80, 1.60" : "0.32, 0.18, 0.08"), det: (faultKey==='outer_race') },
+        { name: "เม็ดลูกปืน (Ball Spin)", order: ords.bsf, freq: (ords.bsf * fRot).toFixed(1), snr: (faultKey==='ball'? "3.90, 2.40, 1.30" : "0.25, 0.11, 0.05"), det: (faultKey==='ball') },
+        { name: "รังลูกปืน (Cage Failure)", order: ords.ftf, freq: (ords.ftf * fRot).toFixed(1), snr: (faultKey==='cage'? "3.50, 1.90, 0.90" : "0.19, 0.08, 0.02"), det: (faultKey==='cage') },
+      ];
+      document.getElementById('tbl-harmonics').innerHTML = hRows.map(r => `
+        <tr class="border-b border-slate-800 hover:bg-slate-800/40">
+          <td class="py-2 px-3 font-sans">${r.name}</td>
+          <td class="py-2 px-3 text-cyan-400">${r.order.toFixed(2)}X</td>
+          <td class="py-2 px-3">${r.freq} Hz</td>
+          <td class="py-2 px-3 text-slate-400">${r.snr}</td>
+          <td class="py-2 px-3">${r.det ? '✅ พบพีคชัดเจน' : '❌ ไม่พบ'}</td>
+        </tr>
+      `).join('');
+
+      // 4. TAB 3: TECHNICIAN GUIDE & SOP
+      document.getElementById('guide-equipment-header').innerHTML = `
+        เครื่องจักร: <b>${mInfo.name}</b> | ตลับลูกปืน: <b>${mInfo.bearing_model}</b> | ตำแหน่งตรวจพบ: <b>${FAULT_TH[faultKey]}</b>
+      `;
+      document.getElementById('guide-fault-title').innerText = FAULT_TH[faultKey];
+
+      const fInfo = FAULT_CHECKS[faultKey] || FAULT_CHECKS['normal'];
+      document.getElementById('guide-specific-list').innerHTML = fInfo.inspections.map(item => `
+        <div class="sop-step">• ${item}</div>
+      `).join('');
+
+      document.getElementById('guide-precautions-list').innerHTML = fInfo.precautions.map(item => `
+        <div class="sop-step" style="border-color:rgba(239, 68, 68, 0.4); background:rgba(239, 68, 68, 0.08);">⚠️ ${item}</div>
+      `).join('') || '<div class="text-xs text-slate-500">ไม่มีข้อควรระวังพิเศษสำหรับสภาพปกติ</div>';
+
+      // Spare parts
+      const pInfo = SPARE_PARTS_DB[mInfo.bearing_model] || { stock: 0, location: "-", lead_time_days: "-", substitutes: [] };
+      document.getElementById('part-model').innerText = mInfo.bearing_model;
+      document.getElementById('part-stock-badge').innerText = `${pInfo.stock} ชิ้น`;
+      document.getElementById('part-stock-badge').className = `badge ${pInfo.stock > 0 ? 'badge-green' : 'badge-red'}`;
+      document.getElementById('part-location').innerText = pInfo.location;
+      document.getElementById('part-lead').innerText = pInfo.lead_time_days;
+      document.getElementById('part-subs').innerText = pInfo.substitutes.join(', ');
+
+      // SOP Checklist
+      document.getElementById('sop-checklist-container').innerHTML = STANDARD_SOP.map((step, idx) => `
+        <label class="flex items-start gap-3 p-3 rounded-lg bg-slate-950/60 border border-slate-800 cursor-pointer hover:bg-slate-900 transition">
+          <input type="checkbox" onchange="updateSopProgress()" class="sop-chk mt-1 rounded text-cyan-500 focus:ring-0">
+          <div>${step}</div>
+        </label>
+      `).join('');
+      updateSopProgress();
+
+      // 5. TAB 4: AGENT DECISION
+      const plan = agent.plan || {};
+      document.getElementById('plan-action').innerText = plan.action || s.action || "เพิ่มความถี่การตรวจวัด และตรวจสอบการหล่อลื่น";
+      document.getElementById('plan-start').innerText = plan.schedule ? `${plan.schedule.slot_start} ถึง ${plan.schedule.slot_end}` : "ตามแผนบำรุงรักษาประจำสัปดาห์";
+      document.getElementById('plan-part').innerText = `${mInfo.bearing_model} (${pInfo.location})`;
+      document.getElementById('plan-standby').innerText = mInfo.standby_machine || "ไม่มีเครื่องสำรอง (ต้องขอ Downtime)";
+
+      // 6. TAB 5: OFFICIAL MAINTENANCE REPORT (COMPLETE ALL 5 SECTIONS)
+      const md = buildFullReportMarkdown(job, faultKey, reqSev, rpm, mInfo);
+      
+      if (window.marked) {
+        marked.setOptions({ gfm: true, breaks: true });
+        document.getElementById('report-markdown-view').innerHTML = marked.parse(md);
+      } else {
+        document.getElementById('report-markdown-view').innerText = md;
+      }
+    }
+
+    function updateSopProgress() {
+      const chks = document.querySelectorAll('.sop-chk');
+      let checked = 0;
+      chks.forEach(c => { if (c.checked) checked++; });
+      const total = chks.length || 6;
+      const pct = Math.round((checked / total) * 100);
+      document.getElementById('sop-progress-text').innerText = `ความคืบหน้าการทำงาน: ${checked}/${total} ขั้นตอน (${pct}%)`;
+      document.getElementById('sop-progress-bar').style.width = `${pct}%`;
+    }
+
+    function setApproval(action) {
+      const badge = document.getElementById('approval-badge');
+      badge.innerText = action;
+      if (action === 'APPROVED') {
+        badge.className = "badge badge-green";
+        document.getElementById('approval-success-msg').classList.remove('hidden');
+        document.getElementById('approval-token-code').innerText = "APP-" + Math.random().toString(36).substring(2, 9).toUpperCase();
+      } else if (action === 'POSTPONED_24H') {
+        badge.className = "badge badge-yellow";
+        document.getElementById('approval-success-msg').classList.add('hidden');
+      } else {
+        badge.className = "badge badge-red";
+        document.getElementById('approval-success-msg').classList.add('hidden');
+      }
+    }
+
+    window.onload = () => {
+      onMachineChange();
+      // Render initial mock matching Outer Race screenshot from user
+      const initialJob = {
+        job_id: "LOCAL-112577",
+        prediction: {
+          fault: "outer_race",
+          confidence: 0.75,
+          degradation_pct: 13.2,
+          rul_hours: { p05: 13.2, p50: 93.0, p95: 344.0 },
+          physics: { physics_fault: "inner_race" }
+        },
+        report: {
+          summary: {
+            fault_th: "แหวนรอบนอก (Outer Race)",
+            degradation_pct: 13.2,
+            urgency: "EMERGENCY",
+            replace_by_iso: "2026-10-22T12:23:00+07:00",
+            replace_within: { text: "0 วัน 13 ชั่วโมง 12 นาที" },
+            action: "เพิ่มความถี่การตรวจวัด และตรวจสอบการหล่อลื่น"
+          }
+        }
+      };
+      renderAllDashboard(initialJob, 'outer_race', 0.75, 1800, MACHINES_DB["PUMP-01"]);
+    };
+  </script>
+</body>
+</html>

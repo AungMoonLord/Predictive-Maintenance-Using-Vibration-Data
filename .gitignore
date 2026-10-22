@@ -1,0 +1,113 @@
+# ==============================================================================
+# MechAgent - Git Ignore Configuration
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Security & Secrets (NEVER COMMIT)
+# ------------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pub
+credentials
+aws_creds.txt
+*.token
+secrets.json
+
+# ------------------------------------------------------------------------------
+# 2. Python Environments, Bytecode & Cache
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ------------------------------------------------------------------------------
+# 3. Unit Tests & Coverage
+# ------------------------------------------------------------------------------
+.pytest_cache/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# ------------------------------------------------------------------------------
+# 4. AWS Serverless, SAM & CDK Build Artifacts
+# ------------------------------------------------------------------------------
+.aws-sam/
+samconfig.toml
+cdk.out/
+
+# ------------------------------------------------------------------------------
+# 5. Large Machine Learning Datasets & Heavy Binary Archives
+# ------------------------------------------------------------------------------
+# Exclude raw multi-gigabyte industrial benchmark datasets (CWRU / XJTU-SY / IMS)
+real_dataset_from_lab/
+data_hybrid/
+*.npz
+
+# Exclude heavy model weight checkpoints (>50MB causes GitHub warnings / >100MB blocked)
+*.pt
+*.pth
+*.bin
+*.onnx
+*.h5
+*.ckpt
+artifacts/*.tar.gz
+artifacts/**/*.pt
+artifacts/**/*.tar.gz
+
+# Exclude zip archives & build bundles
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+mechagent-streamlit-app.zip
+
+# ------------------------------------------------------------------------------
+# 6. Logs, Temporary Files & Test Outputs
+# ------------------------------------------------------------------------------
+*.log
+test_out.pdf
+.ipynb_checkpoints
+
+# ------------------------------------------------------------------------------
+# 7. Operating System & IDE Configurations
+# ------------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
