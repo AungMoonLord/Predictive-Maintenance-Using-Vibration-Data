@@ -80,78 +80,66 @@ MechAgent ตอบโจทย์ด้วยการผสาน **Physics-In
 ### Flow การทำงานของระบบ (End-to-End Data Flow)
 
 ```mermaid
-flowchart TD
-    %% Top Level Client
-    User["&nbsp;&nbsp;&nbsp;&nbsp; 👨‍💻 Plant Engineers & Industrial Vibration Sensors &nbsp;&nbsp;&nbsp;&nbsp;"]
+flowchart LR
+    %% Modern Pastel & High-Contrast Palette
+    classDef clientClass fill:#0B192C,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC;
+    classDef computeClass fill:#0F172A,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC;
+    classDef aiClass fill:#062319,stroke:#34D399,stroke-width:2px,color:#F8FAFC;
+    classDef dangerClass fill:#261214,stroke:#F87171,stroke-width:2px,color:#F8FAFC;
+    classDef storageClass fill:#261E0B,stroke:#FBBF24,stroke-width:2px,color:#F8FAFC;
 
-    %% Parallel Subgraphs
-    subgraph FrontendGroup ["&nbsp;&nbsp; 🌐 1. Web Presentation Layer (Static SPA) &nbsp;&nbsp;"]
-        CF["&nbsp;&nbsp;&nbsp;&nbsp; Amazon CloudFront &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (Global CDN & SSL) &nbsp;&nbsp;&nbsp;&nbsp;"]
-        S3Web["&nbsp;&nbsp;&nbsp;&nbsp; Amazon S3 Web Bucket &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (Static SPA Dashboard) &nbsp;&nbsp;&nbsp;&nbsp;"]
+    %% Layer 1: Edge & Presentation
+    subgraph L1 ["🌐 1. Edge & Delivery Layer"]
+        direction TB
+        USER["👨‍💻 Plant Engineers & Sensors"]:::clientClass
+        CF["☁️ Amazon CloudFront<br/><i>(Global CDN & Edge SSL)</i>"]:::clientClass
+        S3W["🗂️ Amazon S3 Web Bucket<br/><i>(Single Page Application)</i>"]:::clientClass
+        USER -->|"Browse UI"| CF
+        CF -->|"Serve Static SPA"| S3W
     end
 
-    subgraph IngestionGroup ["&nbsp;&nbsp; ⚡ 2. API & Serverless Orchestration Layer &nbsp;&nbsp;"]
-        APIGW["&nbsp;&nbsp;&nbsp;&nbsp; Amazon API Gateway &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (HTTP REST API) &nbsp;&nbsp;&nbsp;&nbsp;"]
-        Lambda["&nbsp;&nbsp;&nbsp;&nbsp; AWS Lambda Orchestrator &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (mechagent-agent) &nbsp;&nbsp;&nbsp;&nbsp;"]
-        S3Data["&nbsp;&nbsp;&nbsp;&nbsp; Amazon S3 Data Bucket &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (Raw Signal Backup) &nbsp;&nbsp;&nbsp;&nbsp;"]
+    %% Layer 2: API & Orchestration
+    subgraph L2 ["⚡ 2. API & Orchestration Layer"]
+        direction TB
+        API["🚪 Amazon API Gateway<br/><i>(RESTful HTTP API)</i>"]:::computeClass
+        LAM["⚙️ AWS Lambda Core<br/><i>(Python 3.12 Arm64)</i>"]:::computeClass
+        S3D["📦 Amazon S3 Data<br/><i>(Raw Signals & Manuals)</i>"]:::storageClass
+        API -->|"Trigger event"| LAM
+        LAM -->|"Backup raw data"| S3D
     end
 
-    subgraph IntelligenceGroup ["&nbsp;&nbsp; 🧠 3. Physics & Multitask AI Layer &nbsp;&nbsp;"]
-        SM["&nbsp;&nbsp;&nbsp;&nbsp; Amazon SageMaker Serverless &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (DistilHuBERT-MTL Inference) &nbsp;&nbsp;&nbsp;&nbsp;"]
-        Physics["&nbsp;&nbsp;&nbsp;&nbsp; Physics Order Engine &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (Envelope FFT & Kinematics) &nbsp;&nbsp;&nbsp;&nbsp;"]
-        Gate{"&nbsp;&nbsp;&nbsp;&nbsp; Gatekeeper Filter: &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Critical Anomaly? &nbsp;&nbsp;&nbsp;&nbsp;"}
+    USER -->|"POST /analyze"| API
+
+    %% Layer 3: Physics & AI Prognostics
+    subgraph L3 ["🧠 3. Physics & AI Prognostics"]
+        direction TB
+        PHY["📐 Kinematic Envelope Engine<br/><i>(BPFO / BPFI / BSF / FTF)</i>"]:::computeClass
+        MTL["🤖 1D-CNN Multi-Task Model<br/><i>(Fault & Severity S0-S4)</i>"]:::aiClass
+        RUL["⏳ Monte Carlo RUL Engine<br/><i>(P05 Safety Deadline)</i>"]:::dangerClass
+        PHY -->|"Cross-validate"| RUL
+        MTL -->|"Predict severity"| RUL
     end
 
-    subgraph StorageAgentGroup ["&nbsp;&nbsp; 🤖 4. Autonomous Agent & Persistence Layer &nbsp;&nbsp;"]
-        Bedrock["&nbsp;&nbsp;&nbsp;&nbsp; Amazon Bedrock &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (Nova Pro Reasoning Agent) &nbsp;&nbsp;&nbsp;&nbsp;"]
-        DDB[("&nbsp;&nbsp;&nbsp;&nbsp; Amazon DynamoDB &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (Jobs & Telemetry Store) &nbsp;&nbsp;&nbsp;&nbsp;")]
-        SNS["&nbsp;&nbsp;&nbsp;&nbsp; Amazon SNS &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (Email / SMS Alerts) &nbsp;&nbsp;&nbsp;&nbsp;"]
-        SaveNormal["&nbsp;&nbsp;&nbsp;&nbsp; Periodic Telemetry Logger &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (Normal Baseline Check) &nbsp;&nbsp;&nbsp;&nbsp;"]
+    LAM -->|"Process FFT orders"| PHY
+    LAM -->|"Run inference"| MTL
+
+    %% Layer 4: Autonomous Governance & Persistence
+    subgraph L4 ["🤖 4. Multi-Agent Governance & Storage"]
+        direction TB
+        BED["🧠 Amazon Bedrock<br/><i>(Nova Pro Multi-Agent)</i>"]:::computeClass
+        DDB[("💾 Amazon DynamoDB / SQLite<br/><i>(Dual-Engine 4 Tables)</i>")]:::storageClass
+        SNS["🔔 Amazon SNS Gateway<br/><i>(Emergency Alerts)</i>"]:::dangerClass
+        HITL["👤 Plant Supervisor<br/><i>(Human-in-the-Loop)</i>"]:::aiClass
+
+        BED <-->|"Query stock & SOPs"| DDB
+        BED -->|"Trigger emergency"| SNS
+        BED -->|"Request approval"| HITL
+        HITL -->|"1-Click sign-off"| DDB
     end
 
-    %% Edge Connections
-    User -->|"1. HTTPS Browser Access"| CF
-    CF -->|"Serve Static Assets"| S3Web
-
-    User -->|"2. POST /analyze (Vibration Signal)"| APIGW
-    APIGW -->|"Trigger Lambda Event"| Lambda
-
-    Lambda -->|"Raw Signal Backup"| S3Data
-    Lambda -->|"Invoke Serverless Model"| SM
-    SM -->|"Return: Fault, Deg %, RUL"| Lambda
-
-    Lambda -->|"Run Order Envelope & FFT"| Physics
-    Physics -->|"Check Health Degradation"| Gate
-
-    Gate -->|"YES: Anomaly Confirmed"| Bedrock
-    Gate -->|"NO: Normal Status"| SaveNormal
-    SaveNormal -->|"Save Baseline History"| DDB
-
-    Bedrock -->|"RAG / Check Parts & Schedule"| DDB
-    Bedrock -->|"Dispatch Work Order & Alert"| SNS
-    Lambda -->|"Update Report & Job Status"| DDB
-
-    User -.->|"3. GET /reports/{id}"| APIGW
-    DDB -.->|"Return Diagnostic JSON"| APIGW
-
-    %% Styling & Colors with 13px font to prevent clipping
-    classDef edgeStyle fill:#0F172A,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC,font-size:13px;
-    classDef apiStyle fill:#1C1917,stroke:#F59E0B,stroke-width:2px,color:#F8FAFC,font-size:13px;
-    classDef computeStyle fill:#1E1B4B,stroke:#818CF8,stroke-width:2px,color:#F8FAFC,font-size:13px;
-    classDef aiStyle fill:#064E3B,stroke:#34D399,stroke-width:2px,color:#F8FAFC,font-size:13px;
-    classDef gateStyle fill:#451A03,stroke:#FBBF24,stroke-width:2px,color:#F8FAFC,font-size:13px;
-    classDef bedrockStyle fill:#3B0764,stroke:#C084FC,stroke-width:2px,color:#F8FAFC,font-size:13px;
-    classDef ddbStyle fill:#172554,stroke:#60A5FA,stroke-width:2px,color:#F8FAFC,font-size:13px;
-    classDef alertStyle fill:#4C0519,stroke:#FB7185,stroke-width:2px,color:#F8FAFC,font-size:13px;
-
-    class User,CF,S3Web edgeStyle;
-    class APIGW apiStyle;
-    class Lambda,S3Data computeStyle;
-    class SM,Physics aiStyle;
-    class Gate gateStyle;
-    class Bedrock bedrockStyle;
-    class DDB,SaveNormal ddbStyle;
-    class SNS alertStyle;
+    RUL -->|"P05 safety bound"| BED
+    LAM -->|"Persist job state"| DDB
+    USER -.->|"GET /reports/{id}"| API
 ```
 
 ### รายการบริการ AWS ที่ใช้งานจริง (AWS Services Breakdown)

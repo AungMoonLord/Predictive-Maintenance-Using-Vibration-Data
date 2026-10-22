@@ -71,80 +71,112 @@ In industrial manufacturing, **rolling element bearing failures account for over
 
 ### Multi-Server MCP & Multi-Agent Collaborative Architecture
 ```mermaid
-flowchart TD
-    subgraph DataSources["Industrial Vibration Data Layer"]
-        CWRU["CWRU Bearing Data\n(12 kHz resampled to 16 kHz)"]
-        XJTU["XJTU-SY Run-to-Failure\n(25.6 kHz resampled to 16 kHz)"]
-        SIM["Physics Simulation Engine\n(ISO 10816 + Pink Noise)"]
+flowchart LR
+    %% Modern Pastel Palette Classes
+    classDef computeClass fill:#0F172A,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC;
+    classDef aiClass fill:#062319,stroke:#34D399,stroke-width:2px,color:#F8FAFC;
+    classDef dangerClass fill:#261214,stroke:#F87171,stroke-width:2px,color:#F8FAFC;
+    classDef storageClass fill:#261E0B,stroke:#FBBF24,stroke-width:2px,color:#F8FAFC;
+
+    %% 1. Ingestion
+    subgraph G1 ["📡 1. Industrial Telemetry Layer"]
+        direction TB
+        RAW["📊 Vibration Accelerometers<br/><i>(16 kHz Stream)</i>"]:::computeClass
+        LAB["🧪 Benchmark Lab Data<br/><i>(CWRU & XJTU-SY)</i>"]:::computeClass
+        DSP["⚡ Signal Conditioning<br/><i>(Bandpass & Envelope FFT)</i>"]:::computeClass
+        RAW -->|"Stream telemetry"| DSP
+        LAB -->|"Replay timeline"| DSP
     end
 
-    subgraph MTLModel["Physics-Informed MTL Model"]
-        BB["1D-CNN Feature Backbone\n(Order Tracking + Bandpass 1-5 kHz)"]
-        H1["Fault Classification Head\n(Normal / Inner / Outer / Ball / Cage)"]
-        H2["Degradation Stage Head\n(0-100% S1 to S4)"]
-        H3["Monte Carlo RUL Head\n(P05 <= P50 <= P95 Bounds)"]
-        BB --> H1
-        BB --> H2
-        BB --> H3
-    end
-    DataSources --> BB
-
-    subgraph MCPServers["Model Context Protocol (MCP) Multi-Server Cluster"]
-        MCP1["physics_diagnostic_server\n- analyze_vibration_signal\n- calculate_envelope_orders"]
-        MCP2["cmms_inventory_server\n- check_spare_parts_stock\n- reserve_spare_parts\n- create_work_order"]
-        MCP3["production_scada_server\n- get_production_plan\n- calculate_derating_strategy\n- evaluate_downtime_financial_impact"]
-        MCP4["safety_sop_server\n- get_safety_loto_procedure\n- generate_thai_maintenance_pdf"]
+    %% 2. Physics & AI Model
+    subgraph G2 ["🔬 2. Physics & Multitask AI"]
+        direction TB
+        PHY["📐 Kinematic Order Tracking<br/><i>(BPFO / BPFI / BSF / FTF)</i>"]:::computeClass
+        CNN["🤖 1D-CNN Feature Backbone<br/><i>(Fault Classification Head)</i>"]:::aiClass
+        RUL["⏳ Monte Carlo RUL Head<br/><i>(P05 <= P50 <= P95 Bounds)</i>"]:::dangerClass
+        PHY -->|"Guardrail validation"| RUL
+        CNN -->|"Health index S0-S4"| RUL
     end
 
-    subgraph AgentDebate["Collaborative Multi-Agent Debate Loop"]
-        SA["Safety Agent\n- Risk & ISO 10816 limits\n- Enforce P05 Safety Deadline\n- Zero-Energy LOTO SOP"]
-        OA["Operations & Financial Agent\n- SCADA Batch Schedules\n- Downtime Loss Calculation\n- ISO 281 Derating Optimization"]
-        ARB["Arbiter Agent\n- Reconcile Safety vs Production\n- Approve Derated Safe Operation\n- Generate Thai Action Plan & Work Order"]
-        SA <-->|"Risk vs Production Trade-off"| OA
-        SA --> ARB
-        OA --> ARB
+    DSP -->|"Extract envelope"| PHY
+    DSP -->|"Windowed signal"| CNN
+
+    %% 3. MCP Servers
+    subgraph G3 ["🔌 3. MCP Multi-Server Cluster"]
+        direction TB
+        M_PHY["🔬 physics_diagnostic_server<br/><i>(Envelope order tracking)</i>"]:::computeClass
+        M_CMMS["📦 cmms_inventory_server<br/><i>(Stock queries & Work Orders)</i>"]:::storageClass
+        M_OPS["⚙️ production_scada_server<br/><i>(Derating & Downtime impact)</i>"]:::computeClass
+        M_SAFE["🛡️ safety_sop_server<br/><i>(Zero-energy LOTO & PDF SOPs)</i>"]:::dangerClass
     end
 
-    MCPServers <--> AgentDebate
-    MTLModel --> MCPServers
+    RUL -->|"Supply metrics"| M_PHY
 
-    subgraph PersistenceCloud["100% Serverless AWS Infrastructure (Singapore ap-southeast-1)"]
-        APIGW["Amazon API Gateway\n(CORS + REST HTTP API)"]
-        LAMBDA["AWS Lambda Orchestrator\n(ARM64 Python 3.12)"]
-        DDB["Amazon DynamoDB / SQLite\n(Dual Engine db.py)"]
-        S3CF["CloudFront + S3 Static SPA\n(Dark Industrial Dashboard)"]
-        APIGW --> LAMBDA
-        LAMBDA --> DDB
-        S3CF --> APIGW
+    %% 4. Agent Debate
+    subgraph G4 ["🤖 4. Autonomous Agent Debate (Bedrock)"]
+        direction TB
+        A_SAFE["🛡️ Safety Agent<br/><i>(ISO 10816 & P05 limits)</i>"]:::dangerClass
+        A_OPS["⚙️ Operations Agent<br/><i>(VFD derating -$45k)</i>"]:::computeClass
+        A_ARB["⚖️ Arbiter Agent<br/><i>(Consensus & Work Orders)</i>"]:::aiClass
+        A_SAFE <-->|"Trade-off debate"| A_OPS
+        A_SAFE -->|"Enforce safety"| A_ARB
+        A_OPS -->|"Propose derated run"| A_ARB
     end
-    ARB --> PersistenceCloud
+
+    M_PHY <-->|"Physics tools"| A_SAFE
+    M_CMMS <-->|"Inventory tools"| A_ARB
+    M_OPS <-->|"Derating tools"| A_OPS
+    M_SAFE <-->|"SOP tools"| A_SAFE
+
+    %% 5. Cloud Delivery
+    subgraph G5 ["☁️ 5. Serverless Cloud Infrastructure"]
+        direction TB
+        DDB[("💾 DynamoDB / SQLite<br/><i>(Dual-Engine 4 Tables)</i>")]:::storageClass
+        S3B[("📦 Amazon S3 Storage<br/><i>(OEM Manuals & PDFs)</i>")]:::storageClass
+        SPA["🌐 CloudFront + S3 SPA<br/><i>(100% Serverless Dashboard)</i>"]:::computeClass
+        SNS["🔔 Amazon SNS Alerts<br/><i>(Emergency Dispatch)</i>"]:::dangerClass
+    end
+
+    A_ARB -->|"Reserve parts & log WO"| DDB
+    A_ARB -->|"Compile report PDF"| S3B
+    A_ARB -->|"Send urgent alert"| SNS
+    DDB -->|"Display live records"| SPA
 ```
 
 ### Multi-Agent Debate & Decision Workflow
 ```mermaid
 sequenceDiagram
     autonumber
-    participant S as Sensor / Lab Stream
-    participant M as MTL Model & Physics
-    participant SA as Safety Agent
-    participant OA as Operations & Financial Agent
-    participant ARB as Arbiter Agent
-    participant DB as CMMS Database / S3
-    participant HITL as Maintenance Supervisor
+    actor Sensor as 📡 Sensor Stream
+    participant MTL as 🧠 MTL Model & Physics
+    participant Safety as 🛡️ Safety Agent
+    participant Ops as ⚙️ Operations Agent
+    participant Arbiter as ⚖️ Arbiter Agent
+    participant DB as 🗄️ CMMS Database / S3
+    participant HITL as 👤 Plant Supervisor
 
-    S->>M: Vibration Acceleration Signal (16 kHz)
-    M->>SA: Predicted Fault, Deg % (S3) & RUL P05 (18h)
-    SA->>SA: Evaluate ISO 10816 vibration limits & LOTO rules
-    SA-->>ARB: Alert: Catastrophic spalling risk! Stop before P05 deadline (18h)
-    M->>OA: Production batch status & downtime cost ($2,000/hr)
-    OA->>OA: Check planned maintenance window (in 28 hours)
-    OA->>OA: Calculate VFD Derating: -15% RPM extends L10h fatigue by +42% to 32h
-    OA-->>ARB: Proposal: Derate speed to 85% to reach planned stop and save $45,000
-    ARB->>ARB: Synthesize consensus: Approve Derating + 15-min vibration monitoring
-    ARB->>DB: Reserve spare bearing & issue Work Order
-    ARB->>DB: Compile Thai Maintenance PDF Report (Sarabun font)
-    ARB->>HITL: Dispatch notification with 1-click Approve / Reject token
-    HITL->>DB: Supervisor Approves -> Inventory stock decremented & WO activated
+    rect rgba(15, 23, 42, 0.45)
+    Note over Sensor,Safety: Phase 1: Ingestion & Fault Prediction
+    Sensor->>MTL: Raw Vibration Acceleration (16 kHz)
+    MTL->>Safety: Predicted Fault, Deg % (S3) & RUL P05 (18h)
+    end
+
+    rect rgba(15, 23, 42, 0.45)
+    Note over Safety,Arbiter: Phase 2: Multi-Agent Trade-off
+    Safety->>Ops: Alert: Catastrophic Spalling Risk (<18h)
+    Ops->>Ops: Calculate Derating (-15% RPM extends life +42%)
+    Ops->>Arbiter: Proposal: Derate speed to save $45,000
+    Safety->>Arbiter: Verify ISO 10816 & Zero-Energy LOTO rules
+    Arbiter->>Arbiter: Synthesize Consensus (Approve derated run)
+    end
+
+    rect rgba(15, 23, 42, 0.45)
+    Note over Arbiter,HITL: Phase 3: Action Plan & Approval
+    Arbiter->>DB: Reserve Spare Bearing & Issue Work Order
+    Arbiter->>DB: Compile Thai Maintenance PDF Report
+    Arbiter->>HITL: Dispatch Alert with 1-Click Approval Token
+    HITL-->>DB: Supervisor Authorizes (Active Work Order)
+    end
 ```
 
 ### AWS Services & Roles
