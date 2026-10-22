@@ -78,68 +78,67 @@ MechAgent ตอบโจทย์ด้วยการผสาน **Physics-In
 ระบบได้รับการออกแบบภายใต้หลักการ **Serverless-First 100%** โดยไม่มีเซิร์ฟเวอร์เสมือน (No EC2) ไม่มี NAT Gateway และไม่มีการคิดค่าบริการคงที่รายชั่วโมงขณะระบบไม่ได้ถูกเรียกใช้งาน (Zero Idle Cost)
 
 ### Flow การทำงานของระบบ (End-to-End Data Flow)
+```text
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   AWS SERVERLESS ARCHITECTURE (MECHAGENT)                                   │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-```mermaid
-flowchart TD
-    %% Clean High-Contrast Palette with Generous Edge Space
-    classDef edgeClass fill:#0F172A,stroke:#38BDF8,stroke-width:2px,color:#FFFFFF;
-    classDef computeClass fill:#1E293B,stroke:#38BDF8,stroke-width:2px,color:#FFFFFF;
-    classDef aiClass fill:#064E3B,stroke:#34D399,stroke-width:2px,color:#FFFFFF;
-    classDef dangerClass fill:#4C0519,stroke:#FB7185,stroke-width:2px,color:#FFFFFF;
-    classDef storageClass fill:#451A03,stroke:#FBBF24,stroke-width:2px,color:#FFFFFF;
-
-    %% Level 1: Client & Delivery
-    subgraph S1 ["🌐 1. Presentation & Delivery Layer (Zero-Idle CDN)"]
-        direction LR
-        USER["&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 👨‍💻 Plant Engineers & Sensors &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"]:::edgeClass
-        CF["&nbsp;&nbsp;&nbsp;&nbsp; ☁️ Amazon CloudFront &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Global CDN & Edge SSL &nbsp;&nbsp;&nbsp;&nbsp;"]:::edgeClass
-        S3W["&nbsp;&nbsp;&nbsp;&nbsp; 🗂️ Amazon S3 Web Bucket &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Single Page Application &nbsp;&nbsp;&nbsp;&nbsp;"]:::edgeClass
-        USER <-->|"HTTPS Access"| CF
-        CF <-->|"Static Assets"| S3W
-    end
-
-    %% Level 2: API & Core Orchestration
-    subgraph S2 ["⚡ 2. API & Serverless Orchestration Layer"]
-        direction LR
-        APIGW["&nbsp;&nbsp;&nbsp;&nbsp; 🚪 Amazon API Gateway &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; RESTful HTTP API (/analyze) &nbsp;&nbsp;&nbsp;&nbsp;"]:::computeClass
-        LAMBDA["&nbsp;&nbsp;&nbsp;&nbsp; ⚙️ AWS Lambda Core &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Python 3.12 (Arm64 Graviton) &nbsp;&nbsp;&nbsp;&nbsp;"]:::computeClass
-        S3DATA["&nbsp;&nbsp;&nbsp;&nbsp; 📦 Amazon S3 Data Bucket &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Raw Signals & Manuals &nbsp;&nbsp;&nbsp;&nbsp;"]:::storageClass
-        APIGW -->|"Trigger Handler"| LAMBDA
-        LAMBDA -->|"Backup Raw Stream"| S3DATA
-    end
-
-    USER -->|"POST /analyze (16 kHz)"| APIGW
-
-    %% Level 3: Physics & AI Prognostics
-    subgraph S3 ["🧠 3. Physics & Multitask AI Layer"]
-        direction LR
-        PHYSICS["&nbsp;&nbsp;&nbsp;&nbsp; 📐 Envelope FFT Engine &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Kinematics (BPFO / BPFI / BSF) &nbsp;&nbsp;&nbsp;&nbsp;"]:::computeClass
-        MTL["&nbsp;&nbsp;&nbsp;&nbsp; 🤖 1D-CNN Multi-Task AI &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Fault Class & Degradation % &nbsp;&nbsp;&nbsp;&nbsp;"]:::aiClass
-        RUL["&nbsp;&nbsp;&nbsp;&nbsp; ⏳ Monte Carlo RUL Engine &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; P05 Safety Deadline Bounds &nbsp;&nbsp;&nbsp;&nbsp;"]:::dangerClass
-        PHYSICS -->|"Guardrail"| RUL
-        MTL -->|"Severity Index"| RUL
-    end
-
-    LAMBDA -->|"Extract Envelope"| PHYSICS
-    LAMBDA -->|"Run Inference"| MTL
-
-    %% Level 4: Autonomous Governance & Persistence
-    subgraph S4 ["🤖 4. Autonomous Governance & Dual-Engine Persistence"]
-        direction LR
-        BEDROCK["&nbsp;&nbsp;&nbsp;&nbsp; 🧠 Amazon Bedrock (Nova Pro) &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Multi-Agent Debate & Reasoning &nbsp;&nbsp;&nbsp;&nbsp;"]:::computeClass
-        DDB[("&nbsp;&nbsp;&nbsp;&nbsp; 💾 Amazon DynamoDB / SQLite &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Dual-Engine 4 Operational Tables &nbsp;&nbsp;&nbsp;&nbsp;")]:::storageClass
-        SNS["&nbsp;&nbsp;&nbsp;&nbsp; 🔔 Amazon SNS Gateway &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; SMS & Email Urgent Alerts &nbsp;&nbsp;&nbsp;&nbsp;"]:::dangerClass
-        HITL["&nbsp;&nbsp;&nbsp;&nbsp; 👤 Plant Supervisor &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Human-in-the-Loop 1-Click &nbsp;&nbsp;&nbsp;&nbsp;"]:::aiClass
-
-        BEDROCK <-->|"Query Parts & SOPs"| DDB
-        BEDROCK -->|"Publish Emergency"| SNS
-        BEDROCK -->|"Request Approval"| HITL
-        HITL -->|"Authorize Work Order"| DDB
-    end
-
-    RUL -->|"Supply P05 Metrics"| BEDROCK
-    LAMBDA -->|"Persist State"| DDB
-    USER -.->|"GET /reports/{id}"| APIGW
+  ┌── LEVEL 1: PRESENTATION & DELIVERY LAYER (ZERO-IDLE CDN) ─────────────────────────────────────────────────┐
+  │                                                                                                          │
+  │   ┌───────────────────────────┐         ┌───────────────────────────┐        ┌───────────────────────┐   │
+  │   │ 👨‍💻 Plant Engineers       │ HTTPS   │ ☁️ Amazon CloudFront      │ Static │ 🗂️ Amazon S3 Web      │   │
+  │   │    & Sensors              │◄───────►│ (Global CDN + Edge SSL)   │◄──────►│ (Single Page App SPA) │   │
+  │   └─────────────┬─────────────┘ Access  └───────────────────────────┘ Assets └───────────────────────┘   │
+  └─────────────────┼────────────────────────────────────────────────────────────────────────────────────────┘
+                    │ POST /analyze (16 kHz Vibration)
+                    ▼
+  ┌── LEVEL 2: API & SERVERLESS ORCHESTRATION LAYER ─────────────────────────────────────────────────────────┐
+  │                                                                                                          │
+  │   ┌───────────────────────────┐  Trigger  ┌───────────────────────────┐  Backup  ┌───────────────────────┐   │
+  │   │ 🚪 Amazon API Gateway     │──────────►│ ⚙️ AWS Lambda Core        │─────────►│ 📦 Amazon S3 Data     │   │
+  │   │ (RESTful HTTP API)        │  Handler  │ (Python 3.12 Arm Graviton)│  Raw Wave│ (Raw Signal & Manuals)│   │
+  │   └─────────────┬─────────────┘           └─────┬───────────────┬─────┘          └───────────────────────┘   │
+  └─────────────────┼───────────────────────────────┼───────────────┼────────────────────────────────────────┘
+                    │                               │               │
+                    │                  Extract FFT  │               │ Run Inference
+                    │                               ▼               ▼
+  ┌── LEVEL 3: PHYSICS & MULTITASK AI LAYER ─────────────────────────────────────────────────────────────────┐
+  │                                                                                                          │
+  │                 │                 ┌───────────────────┐   ┌───────────────────┐                          │
+  │                 │                 │ 📐 Envelope FFT   │   │ 🤖 1D-CNN Multi-  │                          │
+  │                 │                 │ Kinematics Engine │   │ Task AI Inference │                          │
+  │                 │                 └─────────┬─────────┘   └─────────┬─────────┘                          │
+  │                 │                           │ Physics Guardrail     │ Severity Index                     │
+  │                 │                           └───────────┬───────────┘                                    │
+  │                 │                                       ▼                                                │
+  │                 │                         ┌───────────────────────────┐                                  │
+  │                 │                         │ ⏳ Monte Carlo RUL Engine │                                  │
+  │                 │                         │ (P05 Safety Deadline)     │                                  │
+  │                 │                         └─────────────┬─────────────┘                                  │
+  └─────────────────┼───────────────────────────────────────┼────────────────────────────────────────────────┘
+                    │                                       │ Supply P05 Metrics
+                    │                                       ▼
+  ┌── LEVEL 4: AUTONOMOUS GOVERNANCE & DUAL-ENGINE PERSISTENCE ──────────────────────────────────────────────┐
+  │                 │                                                                                        │
+  │                 │       Query Stock / SOPs ┌─────────────────────────┐ Emergency Alert                   │
+  │                 │   ┌─────────────────────►│ 🧠 Amazon Bedrock       │──────────────────┐                │
+  │                 │   │                      │ (Nova Pro Multi-Agent)  │                  │                │
+  │                 │   │                      └────────────┬────────────┘                  │                │
+  │                 │   │                                   │ Authorize / Dispatch          │                │
+  │                 │   ▼                                   ▼                               ▼                │
+  │                 │ ┌────────────────────────┐  ┌─────────────────────┐       ┌────────────────────────┐   │
+  │                 │ │ 💾 Amazon DynamoDB     │  │ 👤 Plant Supervisor │       │ 🔔 Amazon SNS Gateway  │   │
+  │                 │ │ (4 Operational Tables) │◄─│ (Human-in-the-Loop) │       │ (Urgent SMS / Email)   │   │
+  │                 │ └─────────┬──────────────┘  └─────────────────────┘       └────────────────────────┘   │
+  │                 │           │                                                                            │
+  └─────────────────┼───────────┼────────────────────────────────────────────────────────────────────────────┘
+                    │           │
+                    │ GET /reports/{id}
+                    ▼           ▼
+       ┌──────────────────────────────┐
+       │ 🌐 Zero-Idle Web Dashboard   │
+       │ (Status / RUL / WO / Audit)  │
+       └──────────────────────────────┘
 ```
 
 ### รายการบริการ AWS ที่ใช้งานจริง (AWS Services Breakdown)

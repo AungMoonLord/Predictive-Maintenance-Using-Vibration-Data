@@ -70,104 +70,129 @@ In industrial manufacturing, **rolling element bearing failures account for over
 ## 🏗️ System Architecture
 
 ### Multi-Server MCP & Multi-Agent Collaborative Architecture
-```mermaid
-flowchart TD
-    %% Modern High-Contrast Palette with Generous Edge Space
-    classDef computeClass fill:#0F172A,stroke:#38BDF8,stroke-width:2px,color:#FFFFFF;
-    classDef aiClass fill:#064E3B,stroke:#34D399,stroke-width:2px,color:#FFFFFF;
-    classDef dangerClass fill:#4C0519,stroke:#FB7185,stroke-width:2px,color:#FFFFFF;
-    classDef storageClass fill:#451A03,stroke:#FBBF24,stroke-width:2px,color:#FFFFFF;
+```text
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                  MECHAGENT: END-TO-END SYSTEM ARCHITECTURE                                 │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-    %% 1. Ingestion Layer
-    subgraph G1 ["📡 1. Industrial Vibration Telemetry Layer"]
-        direction LR
-        SENS["&nbsp;&nbsp;&nbsp;&nbsp; 📊 Accelerometer Stream &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; 16 kHz High-Frequency &nbsp;&nbsp;&nbsp;&nbsp;"]:::computeClass
-        LAB["&nbsp;&nbsp;&nbsp;&nbsp; 🧪 Benchmark Lab Datasets &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; CWRU & XJTU-SY (RTF) &nbsp;&nbsp;&nbsp;&nbsp;"]:::computeClass
-        DSP["&nbsp;&nbsp;&nbsp;&nbsp; ⚡ Signal Conditioning &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Bandpass & Envelope FFT &nbsp;&nbsp;&nbsp;&nbsp;"]:::computeClass
-        SENS -->|"Raw vibration"| DSP
-        LAB -->|"Replay life-cycle"| DSP
-    end
-
-    %% 2. Physics & AI
-    subgraph G2 ["🔬 2. Physics-Informed Multitask AI Layer"]
-        direction LR
-        PHY["&nbsp;&nbsp;&nbsp;&nbsp; 📐 Kinematic Order Tracking &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; BPFO / BPFI / BSF / FTF Peaks &nbsp;&nbsp;&nbsp;&nbsp;"]:::computeClass
-        CNN["&nbsp;&nbsp;&nbsp;&nbsp; 🤖 1D-CNN Multi-Task Backbone &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Fault Classification Head (S0-S4) &nbsp;&nbsp;&nbsp;&nbsp;"]:::aiClass
-        RUL["&nbsp;&nbsp;&nbsp;&nbsp; ⏳ Monte Carlo RUL Engine &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; P05 Safety Deadline Bounds &nbsp;&nbsp;&nbsp;&nbsp;"]:::dangerClass
-        PHY -->|"Guardrail"| RUL
-        CNN -->|"Health Index"| RUL
-    end
-
-    DSP -->|"Envelope orders"| PHY
-    DSP -->|"1D signal windows"| CNN
-
-    %% 3. MCP Tool Cluster
-    subgraph G3 ["🔌 3. Model Context Protocol (MCP) Tool Servers"]
-        direction LR
-        M_PHY["&nbsp;&nbsp;&nbsp;&nbsp; 🔬 physics_diagnostic_server &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Envelope Order Matching &nbsp;&nbsp;&nbsp;&nbsp;"]:::computeClass
-        M_CMMS["&nbsp;&nbsp;&nbsp;&nbsp; 📦 cmms_inventory_server &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Stock Queries & Work Orders &nbsp;&nbsp;&nbsp;&nbsp;"]:::storageClass
-        M_OPS["&nbsp;&nbsp;&nbsp;&nbsp; ⚙️ scada_production_server &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; VFD Derating & Downtime Costs &nbsp;&nbsp;&nbsp;&nbsp;"]:::computeClass
-        M_SAFE["&nbsp;&nbsp;&nbsp;&nbsp; 🛡️ safety_sop_server &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Zero-Energy LOTO & PDF SOPs &nbsp;&nbsp;&nbsp;&nbsp;"]:::dangerClass
-    end
-
-    RUL -->|"Supply P05 metrics"| G3
-
-    %% 4. Multi-Agent Governance
-    subgraph G4 ["🤖 4. Autonomous Multi-Agent Debate (Amazon Bedrock)"]
-        direction LR
-        A_SAFE["&nbsp;&nbsp;&nbsp;&nbsp; 🛡️ Safety Agent &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; ISO 10816 & LOTO Compliance &nbsp;&nbsp;&nbsp;&nbsp;"]:::dangerClass
-        A_OPS["&nbsp;&nbsp;&nbsp;&nbsp; ⚙️ Operations Agent &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; VFD Derating Strategy (-$45k) &nbsp;&nbsp;&nbsp;&nbsp;"]:::computeClass
-        A_ARB["&nbsp;&nbsp;&nbsp;&nbsp; ⚖️ Arbiter Agent &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Multi-Objective Consensus & WO &nbsp;&nbsp;&nbsp;&nbsp;"]:::aiClass
-        A_SAFE <-->|"Trade-off debate"| A_OPS
-        A_SAFE -->|"Enforce safety"| A_ARB
-        A_OPS -->|"Propose derated run"| A_ARB
-    end
-
-    G3 <-->|"Tool-use protocol"| G4
-
-    %% 5. Cloud Delivery & Persistence
-    subgraph G5 ["☁️ 5. 100% Serverless AWS Infrastructure & Operations"]
-        direction LR
-        DDB[("&nbsp;&nbsp;&nbsp;&nbsp; 💾 Amazon DynamoDB / SQLite &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Dual-Engine 4 Tables &nbsp;&nbsp;&nbsp;&nbsp;")]:::storageClass
-        S3B[("&nbsp;&nbsp;&nbsp;&nbsp; 📦 Amazon S3 Storage &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; OEM Manuals & PDF Reports &nbsp;&nbsp;&nbsp;&nbsp;")]:::storageClass
-        SPA["&nbsp;&nbsp;&nbsp;&nbsp; 🌐 CloudFront + S3 SPA &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Zero-Idle Web Dashboard &nbsp;&nbsp;&nbsp;&nbsp;"]:::computeClass
-        SNS["&nbsp;&nbsp;&nbsp;&nbsp; 🔔 Amazon SNS Gateway &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Instant SMS / Email Alerts &nbsp;&nbsp;&nbsp;&nbsp;"]:::dangerClass
-    end
-
-    A_ARB -->|"Reserve parts & log WO"| DDB
-    A_ARB -->|"Compile Thai report PDF"| S3B
-    A_ARB -->|"Dispatch urgent alert"| SNS
-    DDB -->|"Feed Database Explorer"| SPA
+  ┌── 1. INDUSTRIAL VIBRATION TELEMETRY LAYER ─────────────────────────────────────────────────────────────┐
+  │                                                                                                        │
+  │   ┌──────────────────────────┐   Raw Vibration   ┌──────────────────────────┐                          │
+  │   │ 📊 Accelerometer Stream  ├──────────────────►│                          │                          │
+  │   │    (16 kHz High-Freq)    │                   │ ⚡ Signal Conditioning   │                          │
+  │   └──────────────────────────┘                   │ (Bandpass & Envelope FFT)│                          │
+  │   ┌──────────────────────────┐ Replay Life-Cycle │                          │                          │
+  │   │ 🧪 Benchmark Lab Dataset ├──────────────────►│                          │                          │
+  │   │    (CWRU & XJTU-SY RTF)  │                   └────────────┬─────────────┘                          │
+  │   └──────────────────────────┘                                │                                        │
+  └───────────────────────────────────────────────────────────────┼────────────────────────────────────────┘
+                                    ┌─────────────────────────────┴────────────────────────────┐
+                                    │ Envelope Orders                    1D Signal Windows     │
+                                    ▼                                                          ▼
+  ┌── 2. PHYSICS-INFORMED MULTITASK AI LAYER ────────────────────────────────────────────────────────────────┐
+  │                                                                                                          │
+  │   ┌──────────────────────────┐                           ┌──────────────────────────┐                    │
+  │   │ 📐 Kinematic Tracking    │                           │ 🤖 1D-CNN Multi-Task     │                    │
+  │   │ (BPFO/BPFI/BSF/FTF Peaks)│                           │ (Fault Head: S0 to S4)   │                    │
+  │   └────────────┬─────────────┘                           └────────────┬─────────────┘                    │
+  │                │ Physics Guardrail                                    │ Health Index                     │
+  │                └───────────────────────────────┬──────────────────────┘                                  │
+  │                                                ▼                                                         │
+  │                                  ┌──────────────────────────┐                                            │
+  │                                  │ ⏳ Monte Carlo RUL Engine│                                            │
+  │                                  │ (P05 Safety Bounds / RUL)│                                            │
+  │                                  └─────────────┬────────────┘                                            │
+  └────────────────────────────────────────────────┼─────────────────────────────────────────────────────────┘
+                                                   │ Supply P05 Metrics
+                                                   ▼
+  ┌── 3. MODEL CONTEXT PROTOCOL (MCP) TOOL SERVERS ──────────────────────────────────────────────────────────┐
+  │                                                                                                          │
+  │   ┌──────────────────────┐ ┌──────────────────────┐ ┌──────────────────────┐ ┌──────────────────────┐   │
+  │   │ 🔬 physics_diagnostic│ │ 📦 cmms_inventory    │ │ ⚙️ scada_production │ │ 🛡️ safety_sop_server │   │
+  │   │  (Envelope Matching) │ │ (Spare Bearing Stock)│ │ (VFD Derating / Cost)│ │ (Zero-Energy LOTO SOP)│   │
+  │   └──────────┬───────────┘ └──────────┬───────────┘ └──────────┬───────────┘ └──────────┬───────────┘   │
+  └──────────────┼────────────────────────┼────────────────────────┼────────────────────────┼────────────────┘
+                 └────────────────────────┴───────────┬────────────┴────────────────────────┘
+                                                      │ Standardized MCP Tool Protocol
+                                                      ▼
+  ┌── 4. AUTONOMOUS MULTI-AGENT DEBATE (AMAZON BEDROCK) ─────────────────────────────────────────────────────┐
+  │                                                                                                          │
+  │          ┌──────────────────────────┐   Trade-off Debate   ┌──────────────────────────┐                  │
+  │          │     🛡️ Safety Agent      │◄────────────────────►│   ⚙️ Operations Agent    │                  │
+  │          │(ISO 10816 / LOTO Boundary│                      │(VFD Derating Strategy -$45k)                │
+  │          └────────────┬─────────────┘                      └────────────┬─────────────┘                  │
+  │                       │                                                 │                                │
+  │                       │ Enforce Safety Boundaries                       │ Propose Derated Run Strategy   │
+  │                       └────────────────────────┬────────────────────────┘                                │
+  │                                                ▼                                                         │
+  │                                  ┌──────────────────────────┐                                            │
+  │                                  │     ⚖️ Arbiter Agent     │                                            │
+  │                                  │(Consensus & Action Plan) │                                            │
+  │                                  └─────────────┬────────────┘                                            │
+  └────────────────────────────────────────────────┼─────────────────────────────────────────────────────────┘
+                                                   │
+             ┌─────────────────────────────────────┼─────────────────────────────────────┐
+             │ Reserve Spares & Log WO             │ Compile Thai Report PDF             │ Dispatch Urgent Alert
+             ▼                                     ▼                                     ▼
+  ┌── 5. 100% SERVERLESS AWS INFRASTRUCTURE & OPERATIONS ────────────────────────────────────────────────────┐
+  │                                                                                                          │
+  │   ┌──────────────────────────┐           ┌──────────────────────────┐           ┌──────────────────────┐ │
+  │   │ 💾 Amazon DynamoDB       │           │ 📦 Amazon S3 Storage     │           │ 🔔 Amazon SNS Gateway│ │
+  │   │ (Dual-Engine / 4 Tables) │           │ (OEM Manuals & PDF Reps) │           │ (Instant SMS / Email)│ │
+  │   └────────────┬─────────────┘           └──────────────────────────┘           └──────────┬───────────┘ │
+  │                │ Feed Data                                                                 │ 1-Click     │
+  │                ▼                                                                           ▼ Approval    │
+  │   ┌──────────────────────────┐                                                  ┌──────────────────────┐ │
+  │   │ 🌐 CloudFront + S3 SPA   │                                                  │ 👤 Plant Supervisor  │ │
+  │   │ (Zero-Idle Web Dashboard)│                                                  │ (Human-in-the-Loop)  │ │
+  │   └──────────────────────────┘                                                  └──────────────────────┘ │
+  └──────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Multi-Agent Debate & Decision Workflow
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Sensor as 📡 Sensor Stream
-    participant MTL as 🧠 MTL Model & Physics
-    participant Safety as 🛡️ Safety Agent
-    participant Ops as ⚙️ Operations Agent
-    participant Arbiter as ⚖️ Arbiter Agent
-    participant DB as 🗄️ CMMS Database / S3
-    participant HITL as 👤 Plant Supervisor
+```text
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                              MULTI-AGENT DEBATE & WORK ORDER DECISION SEQUENCE                              │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-    Note over Sensor,Safety: ━━ Phase 1: Ingestion & Fault Prediction ━━
-    Sensor->>MTL: Raw Vibration Acceleration (16 kHz)
-    MTL->>Safety: Predicted Fault, Deg % (S3) & RUL P05 (18h)
-
-    Note over Safety,Arbiter: ━━ Phase 2: Multi-Agent Trade-off ━━
-    Safety->>Ops: Alert: Catastrophic Spalling Risk (<18h)
-    Ops->>Ops: Calculate Derating (-15% RPM extends life +42%)
-    Ops->>Arbiter: Proposal: Derate speed to save $45,000
-    Safety->>Arbiter: Verify ISO 10816 & Zero-Energy LOTO rules
-    Arbiter->>Arbiter: Synthesize Consensus (Approve derated run)
-
-    Note over Arbiter,HITL: ━━ Phase 3: Action Plan & Approval ━━
-    Arbiter->>DB: Reserve Spare Bearing & Issue Work Order
-    Arbiter->>DB: Compile Thai Maintenance PDF Report
-    Arbiter->>HITL: Dispatch Alert with 1-Click Approval Token
-    HITL-->>DB: Supervisor Authorizes (Active Work Order)
+  📡 Sensor    🧠 MTL & Phys    🛡️ Safety       ⚙️ Ops Agent     ⚖️ Arbiter       🗄️ CMMS/S3     👤 Supervisor
+     │               │              │               │               │               │               │
+  ───┼───────────────┼──────────────┼───────────────┼───────────────┼───────────────┼───────────────┼───
+  PHASE 1: INGESTION & FAULT PREDICTION
+  ───┼───────────────┼──────────────┼───────────────┼───────────────┼───────────────┼───────────────┼───
+     │ 1. Raw 16 kHz │              │               │               │               │               │
+     ├──────────────►│              │               │               │               │               │
+     │               │ 2. S3 / RUL  │               │               │               │               │
+     │               ├─────────────►│               │               │               │               │
+     │               │              │               │               │               │               │
+  ───┼───────────────┼──────────────┼───────────────┼───────────────┼───────────────┼───────────────┼───
+  PHASE 2: MULTI-AGENT TRADE-OFF DEBATE (AMAZON BEDROCK)
+  ───┼───────────────┼──────────────┼───────────────┼───────────────┼───────────────┼───────────────┼───
+     │               │              │ 3. Spalling   │               │               │               │
+     │               │              ├──────────────►│               │               │               │
+     │               │              │               │ 4. Derate     │               │               │
+     │               │              │               │──┐ -15% RPM   │               │               │
+     │               │              │               │◄─┘            │               │               │
+     │               │              │               │ 5. Save $45k  │               │               │
+     │               │              │               ├──────────────►│               │               │
+     │               │              │ 6. Enforce ISO 10816 & LOTO   │               │               │
+     │               │              ├──────────────────────────────►│               │               │
+     │               │              │               │               │ 7. Consensus  │               │
+     │               │              │               │               │──┐ Approve    │               │
+     │               │              │               │               │◄─┘ Derated Run│               │
+     │               │              │               │               │               │               │
+  ───┼───────────────┼──────────────┼───────────────┼───────────────┼───────────────┼───────────────┼───
+  PHASE 3: ACTION PLAN & HUMAN-IN-THE-LOOP APPROVAL
+  ───┼───────────────┼──────────────┼───────────────┼───────────────┼───────────────┼───────────────┼───
+     │               │              │               │               │ 8. Reserve WO │               │
+     │               │              │               │               ├──────────────►│               │
+     │               │              │               │               │ 9. Save PDF   │               │
+     │               │              │               │               ├──────────────►│               │
+     │               │              │               │               │ 10. Dispatch SMS / Email      │
+     │               │              │               │               ├──────────────────────────────►│
+     │               │              │               │               │               │ 11. 1-Click OK│
+     │               │              │               │               │               │◄──────────────┤
+     ▼               ▼              ▼               ▼               ▼               ▼               ▼
 ```
 
 ### AWS Services & Roles
