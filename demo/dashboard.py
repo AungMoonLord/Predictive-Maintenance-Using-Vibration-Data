@@ -188,6 +188,195 @@ def load_local_predictor():
 
 predictor = load_local_predictor()
 
+# ----------------- DATABASE EXPLORER RENDERER -----------------
+def render_database_explorer():
+    """Renders clean, human-friendly database viewer for all 4 tables."""
+    try:
+        from db import get_db
+        db = get_db()
+    except Exception as e:
+        st.error(f"ไม่สามารถเชื่อมต่อฐานข้อมูลได้: {e}")
+        return
+
+    st.markdown("#### 🗄️ คลังข้อมูลระบบและการเฝ้าระวัง (MechAgent Database Explorer)")
+    st.caption("ระบบตรวจสอบและจัดการฐานข้อมูล Dual-Engine (SQLite `data/mechagent.db` และ AWS DynamoDB)")
+
+    # Retrieve current data
+    try:
+        eqs = db.list_equipments()
+        parts = db.list_spare_parts()
+        wos = db.list_work_orders()
+    except Exception as e:
+        st.error(f"ข้อผิดพลาดในการอ่านข้อมูล: {e}")
+        return
+
+    # 4 Quick KPI Summary Cards
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.metric("⚙️ ทะเบียนเครื่องจักร", f"{len(eqs)} เครื่อง")
+    with c2:
+        total_stock = sum(p.get("stock_quantity", 0) for p in parts)
+        st.metric("📦 รายการอะไหล่ในคลัง", f"{len(parts)} รุ่น ({total_stock} ชิ้น)")
+    with c3:
+        approved_wos = sum(1 for w in wos if w.get("status") == "APPROVED")
+        st.metric("📝 ใบสั่งซ่อมบำรุง", f"{len(wos)} ใบ", delta=f"อนุมัติ {approved_wos} ใบ")
+    with c4:
+        st.metric("💾 สถานะฐานข้อมูล", "Active (เชื่อมต่อแล้ว)", delta="Dual-Engine")
+
+    st.markdown("---")
+
+    # Table Selector
+    table_choice = st.radio(
+        "เลือกตารางที่ต้องการดูข้อมูล:",
+        ["⚙️ ทะเบียนเครื่องจักร (equipments)",
+         "📦 คลังอะไหล่ตลับลูกปืน (spare_parts_inventory)",
+         "📈 ประวัติการสั่นสะเทือนจริง (vibration_telemetry)",
+         "📝 ประวัติใบสั่งซ่อมบำรุง (work_orders)"],
+        horizontal=True
+    )
+
+    if "equipments" in table_choice:
+        st.subheader("⚙️ ทะเบียนเครื่องจักรในโรงงาน (Equipment Master Data)")
+        st.caption("ข้อมูลเครื่องจักรเป้าหมาย, ตำแหน่งในสายการผลิต, สเปกตลับลูกปืน และเครื่อง Standby")
+        df_eq = pd.DataFrame(eqs)
+        if not df_eq.empty:
+            cols_show = ["machine_id", "name", "line", "bearing_model", "criticality", "rated_rpm", "standby_machine", "downtime_cost_per_hour"]
+            avail_cols = [c for c in cols_show if c in df_eq.columns]
+            st.dataframe(
+                df_eq[avail_cols].rename(columns={
+                    "machine_id": "รหัสเครื่อง",
+                    "name": "ชื่อเครื่องจักร",
+                    "line": "สายการผลิต",
+                    "bearing_model": "รุ่นลูกปืน",
+                    "criticality": "ระดับความสำคัญ",
+                    "rated_rpm": "ความเร็วรอบ (RPM)",
+                    "standby_machine": "เครื่องสำรอง",
+                    "downtime_cost_per_hour": "ค่าสูญเสีย/ชม. (THB)"
+                }),
+                use_container_width=True,
+                hide_index=True
+            )
+
+    elif "spare_parts_inventory" in table_choice:
+        st.subheader("📦 คลังตลับลูกปืนและอะไหล่ทดแทน (Spare Parts Inventory)")
+        st.caption("สถานะสต็อกคงคลังจริง, Safety Stock, ระยะเวลาจัดซื้อ และรุ่นที่สามารถใช้ทดแทนกันได้")
+        df_parts = pd.DataFrame(parts)
+        if not df_parts.empty:
+            def get_stock_status(row):
+                qty = row.get("stock_quantity", 0)
+                safe = row.get("safety_stock", 0)
+                if qty == 0:
+                    return "🔴 สินค้าหมด (Out of Stock)"
+                elif qty <= safe:
+                    return "🟡 ต่ำกว่าเกณฑ์ (Below Safety)"
+                return "🟢 เพียงพอ (Healthy)"
+            df_parts["status_desc"] = df_parts.apply(get_stock_status, axis=1)
+
+            if "substitutes" in df_parts.columns:
+                df_parts["substitutes"] = df_parts["substitutes"].apply(lambda s: ", ".join(s) if isinstance(s, list) else str(s))
+
+            cols_show = ["part_number", "bearing_model", "status_desc", "stock_quantity", "safety_stock", "unit_price_thb", "lead_time_days", "bin_location", "substitutes"]
+            avail_cols = [c for c in cols_show if c in df_parts.columns]
+            st.dataframe(
+                df_parts[avail_cols].rename(columns={
+                    "part_number": "รหัสอะไหล่",
+                    "bearing_model": "รุ่นตลับลูกปืน",
+                    "status_desc": "สถานะสต็อก",
+                    "stock_quantity": "คงเหลือ (ชิ้น)",
+                    "safety_stock": "สต็อกขั้นต่ำ",
+                    "unit_price_thb": "ราคา/ชิ้น (THB)",
+                    "lead_time_days": "Lead Time (วัน)",
+                    "bin_location": "ตำแหน่งจัดเก็บ",
+                    "substitutes": "รุ่นเทียบเคียง"
+                }),
+                use_container_width=True,
+                hide_index=True
+            )
+
+    elif "vibration_telemetry" in table_choice:
+        st.subheader("📈 ประวัติการวัดความสั่นสะเทือนตามเวลาจริง (Vibration Telemetry History)")
+        st.caption("ข้อมูล Time-series ที่บันทึกจากการทดสอบจริง Run-to-Failure (XJTU-SY) และผลพยากรณ์ RUL")
+
+        mach_options = [e["machine_id"] for e in eqs] if eqs else ["PUMP-01"]
+        sel_mach = st.selectbox("เลือกเครื่องจักรเพื่อดูกราฟวิวัฒนาการ:", mach_options, index=0)
+        telems = db.get_telemetry_history(sel_mach, limit=100)
+
+        if telems:
+            df_t = pd.DataFrame(telems)
+            # Interactive Plotly Run-to-Failure Curve
+            fig_t = go.Figure()
+            fig_t.add_trace(go.Scatter(
+                x=df_t["timestamp"],
+                y=df_t["degradation_pct"],
+                mode="lines+markers",
+                name="ความเสื่อมสภาพ (%)",
+                line=dict(color="#f43f5e", width=2.5),
+                marker=dict(size=6)
+            ))
+            fig_t.add_trace(go.Scatter(
+                x=df_t["timestamp"],
+                y=df_t["rms"] * 30,
+                mode="lines",
+                name="RMS Vibration (x30)",
+                line=dict(color="#38bdf8", width=1.5, dash="dot")
+            ))
+            fig_t.update_layout(
+                title=f"แนวโน้มความเสื่อมสภาพ (Run-to-Failure Evolution) - {sel_mach}",
+                yaxis_title="ดัชนีความเสื่อมสภาพ (%)",
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(30, 41, 59, 0.4)",
+                font={'color': "#f8fafc"},
+                height=320,
+                margin=dict(l=20, r=20, t=40, b=20)
+            )
+            st.plotly_chart(fig_t, use_container_width=True)
+
+            show_cols = ["id", "timestamp", "rpm", "rms", "kurtosis", "predicted_fault", "confidence", "degradation_pct", "rul_p05", "urgency"]
+            avail_cols = [c for c in show_cols if c in df_t.columns]
+            st.dataframe(
+                df_t[avail_cols].rename(columns={
+                    "id": "ลำดับ",
+                    "timestamp": "เวลาบันทึก",
+                    "rpm": "RPM",
+                    "rms": "RMS (g)",
+                    "kurtosis": "Kurtosis",
+                    "predicted_fault": "ตำแหน่งเสียหาย",
+                    "confidence": "ความมั่นใจ",
+                    "degradation_pct": "ความเสื่อม (%)",
+                    "rul_p05": "RUL P05 (ชม.)",
+                    "urgency": "ความเร่งด่วน"
+                }),
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info(f"ยังไม่มีบันทึกข้อมูลการสั่นสะเทือนสำหรับ {sel_mach}")
+
+    elif "work_orders" in table_choice:
+        st.subheader("📝 ประวัติใบสั่งซ่อมบำรุงและการอนุมัติ (Work Orders Record)")
+        st.caption("รายการใบสั่งซ่อมที่สร้างโดย Arbiter Agent พร้อมสถานะการอนุมัติของหัวหน้างาน (HITL)")
+        if wos:
+            df_wo = pd.DataFrame(wos)
+            cols_wo = ["work_order_id", "machine_id", "status", "urgency", "created_at", "planned_start", "fault", "approver", "parts_allocated"]
+            avail_cols = [c for c in cols_wo if c in df_wo.columns]
+            st.dataframe(
+                df_wo[avail_cols].rename(columns={
+                    "work_order_id": "รหัสใบสั่งซ่อม",
+                    "machine_id": "รหัสเครื่อง",
+                    "status": "สถานะงาน",
+                    "urgency": "ความเร่งด่วน",
+                    "created_at": "วันที่สร้าง",
+                    "planned_start": "กำหนดเริ่มงาน",
+                    "fault": "ความเสียหาย",
+                    "approver": "ผู้อนุมัติ",
+                    "parts_allocated": "อะไหล่ที่จัดสรร"
+                }),
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("ยังไม่มีประวัติใบสั่งงานซ่อมบำรุงในระบบ")
+
 # ----------------- SIDEBAR CONTROLS -----------------
 with st.sidebar:
     st.image("https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=400&q=80", use_container_width=True)
@@ -587,12 +776,13 @@ if res:
     st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
     
     # ----------------- TABS CONTENT -----------------
-    tab_overview, tab_physics, tab_guide, tab_agent, tab_report = st.tabs([
+    tab_overview, tab_physics, tab_guide, tab_agent, tab_report, tab_database = st.tabs([
         "📊 ภาพรวม & RUL (Overview)",
         "📈 ฟิสิกส์ & สเปกตรัม (Envelope Spectrum)",
         "🛠️ คู่มือช่างเทคนิค & SOP (Technician Guide)",
         "🤖 การตัดสินใจของ Agent (Approval & Audit)",
         "📄 รายงานฉบับเต็ม (Full Report)",
+        "🗄️ ฐานข้อมูลระบบ (Database Explorer)",
     ])
     
     # ----------------- TAB 1: OVERVIEW & GAUGES -----------------
@@ -997,6 +1187,10 @@ if res:
         st.markdown("---")
         st.markdown(md_text)
 
+    # ----------------- TAB 6: DATABASE EXPLORER -----------------
+    with tab_database:
+        render_database_explorer()
+
 else:
     # Initial landing screen when no analysis has been run
     st.info("👈 กรุณากดปุ่ม **'🚀 วิเคราะห์ความสั่นสะเทือน (Analyze Vibration)'** ในแถบด้านซ้าย เพื่อเริ่มการวิเคราะห์จำลอง")
@@ -1017,3 +1211,8 @@ else:
         - **MOTOR-07:** มอเตอร์สายพานลำเลียง (Criticality B)
         - **FAN-03:** พัดลมดูดอากาศ (SKF 6208 Zero-shot Bearing)
         """)
+
+    # Instant Database Access on Landing Screen
+    st.markdown("---")
+    with st.expander("🗄️ เปิดดูคลังข้อมูลระบบ Database Explorer (เครื่องจักร, สต็อกอะไหล่, ประวัติจริง)", expanded=True):
+        render_database_explorer()
