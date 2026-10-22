@@ -161,12 +161,176 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
     #report-markdown-view strong { color: #ffffff; font-weight: 600; }
 
     @media print {
-      body { background-color: #ffffff !important; color: #000000 !important; }
-      aside, header, #kpi-row, .tabs-bar, .no-print { display: none !important; }
-      #printable-report, #printable-report * { visibility: visible !important; color: #000000 !important; }
-      #printable-report table { border-color: #94a3b8 !important; }
-      #printable-report th { background-color: #f1f5f9 !important; color: #000000 !important; }
-      #printable-report td { border-color: #cbd5e1 !important; color: #000000 !important; }
+      @page {
+        margin: 12mm 15mm 12mm 15mm;
+        size: A4 portrait;
+      }
+
+      /* 1. Global Reset to Pure White Background & Crisp Black/Slate Text */
+      html, body {
+        background-color: #ffffff !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        font-family: 'Sarabun', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        font-size: 10.5pt !important;
+        line-height: 1.55 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      /* 2. Hide all app navigation, banners, sidebars, buttons, and unrelated tabs */
+      aside,
+      header,
+      #kpi-row,
+      .tabs-bar,
+      .no-print,
+      .bg-gradient-to-r,
+      #tab-content-0,
+      #tab-content-1,
+      #tab-content-2,
+      #tab-content-3,
+      #tab-content-5 {
+        display: none !important;
+      }
+
+      /* 3. Containers - force 100% clean white background with no dark borders or shadows */
+      main,
+      #main-container,
+      #tab-content-4,
+      .kpi-card,
+      #printable-report {
+        display: block !important;
+        background-color: #ffffff !important;
+        background: #ffffff !important;
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+
+      /* 4. Show official print letterhead */
+      .print-only {
+        display: block !important;
+      }
+
+      /* 5. Typography in Print */
+      #report-markdown-view,
+      #report-markdown-view * {
+        color: #0f172a !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        text-shadow: none !important;
+      }
+
+      #report-markdown-view h1 {
+        font-size: 15pt !important;
+        font-weight: 800 !important;
+        color: #0f172a !important;
+        background-color: #f8fafc !important;
+        border-left: 5px solid #0284c7 !important;
+        border-bottom: none !important;
+        border-radius: 0 4px 4px 0 !important;
+        padding: 8px 12px !important;
+        margin-top: 4px !important;
+        margin-bottom: 12px !important;
+        page-break-after: avoid;
+      }
+
+      #report-markdown-view h2 {
+        font-size: 12pt !important;
+        font-weight: 700 !important;
+        color: #0369a1 !important;
+        border-bottom: 1.5px solid #cbd5e1 !important;
+        padding-bottom: 4px !important;
+        margin-top: 16px !important;
+        margin-bottom: 8px !important;
+        page-break-after: avoid;
+      }
+
+      #report-markdown-view h3 {
+        font-size: 10.5pt !important;
+        font-weight: 700 !important;
+        color: #1e293b !important;
+        margin-top: 12px !important;
+        margin-bottom: 6px !important;
+        page-break-after: avoid;
+      }
+
+      #report-markdown-view p,
+      #report-markdown-view li {
+        font-size: 10pt !important;
+        color: #1e293b !important;
+        line-height: 1.55 !important;
+      }
+
+      #report-markdown-view strong {
+        color: #000000 !important;
+        font-weight: 700 !important;
+      }
+
+      /* 6. Clean, Ink-Saving Table Styling (White Background, Crisp Borders) */
+      #report-markdown-view table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        border: 1px solid #94a3b8 !important;
+        margin: 10px 0 16px 0 !important;
+        page-break-inside: avoid;
+        background-color: #ffffff !important;
+      }
+
+      #report-markdown-view th {
+        background-color: #f1f5f9 !important;
+        color: #0f172a !important;
+        font-weight: 700 !important;
+        border: 1px solid #94a3b8 !important;
+        padding: 7px 10px !important;
+        font-size: 9.5pt !important;
+        text-align: left !important;
+      }
+
+      #report-markdown-view td {
+        background-color: #ffffff !important;
+        color: #1e293b !important;
+        border: 1px solid #cbd5e1 !important;
+        padding: 6px 10px !important;
+        font-size: 9.5pt !important;
+      }
+
+      #report-markdown-view tr:nth-child(even) td {
+        background-color: #f8fafc !important;
+      }
+
+      /* 7. Code, Blockquote & Badges */
+      #report-markdown-view code {
+        background-color: #f1f5f9 !important;
+        color: #0f172a !important;
+        border: 1px solid #e2e8f0 !important;
+        padding: 1px 4px !important;
+        border-radius: 3px !important;
+        font-size: 9pt !important;
+      }
+
+      #report-markdown-view blockquote {
+        background-color: #f8fafc !important;
+        border-left: 3px solid #0284c7 !important;
+        color: #1e293b !important;
+        padding: 6px 12px !important;
+        margin: 8px 0 !important;
+        font-size: 9.5pt !important;
+      }
+
+      #report-markdown-view ul,
+      #report-markdown-view ol {
+        padding-left: 20px !important;
+        margin: 6px 0 !important;
+      }
+
+      #report-markdown-view li {
+        margin-bottom: 3px !important;
+      }
     }
   </style>
 </head>
@@ -330,7 +494,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
     <main class="flex-1 p-5 lg:p-7 space-y-5 overflow-x-hidden">
       
       <!-- Header Banner -->
-      <div class="bg-gradient-to-r from-slate-900 via-slate-900/90 to-sky-950/40 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div class="bg-gradient-to-r from-slate-900 via-slate-900/90 to-sky-950/40 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
         <div>
           <h1 class="text-xl md:text-2xl font-extrabold bg-gradient-to-r from-sky-400 to-indigo-300 bg-clip-text text-transparent">
             MechAgent: Physics-Informed Agentic Maintenance
@@ -544,7 +708,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
       <!-- ================= TAB 5: FULL REPORT & DOWNLOAD ================= -->
       <div id="tab-content-4" class="space-y-5">
         <div class="kpi-card p-6 space-y-4">
-          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-4">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-4 no-print">
             <div>
               <h2 class="text-base font-bold text-white">📄 รายงานการบำรุงรักษาทางการ (Official Maintenance Report)</h2>
               <p class="text-xs text-slate-400">สร้างรายงานอัตโนมัติจากโมเดล AI และหลักฟิสิกส์</p>
@@ -558,6 +722,19 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 
           <!-- Printable Area -->
           <div id="printable-report" class="bg-slate-900/40 p-4 md:p-6 rounded-lg border border-slate-800/80">
+            <!-- Official Print Letterhead (Clean White, Ink-Saving) -->
+            <div class="hidden print-only border-b-2 border-slate-900 pb-3 mb-4">
+              <div class="flex justify-between items-end">
+                <div>
+                  <div class="text-lg font-black text-slate-900 tracking-wide uppercase">MECHAGENT INDUSTRIAL AI PLATFORM</div>
+                  <div class="text-xs text-slate-600 font-medium">Physics-Informed Autonomous Maintenance &amp; Machine Health Diagnostics</div>
+                </div>
+                <div class="text-right text-[10px] text-slate-500 font-mono">
+                  <div>ISO 13373-1 Condition Monitoring Standard</div>
+                  <div>OFFICIAL DIAGNOSTIC REPORT</div>
+                </div>
+              </div>
+            </div>
             <div id="report-markdown-view" class="leading-relaxed"></div>
           </div>
         </div>
@@ -1760,7 +1937,10 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
     }
 
     function printOrDownloadReport() {
-      window.print();
+      switchTab(4);
+      setTimeout(() => {
+        window.print();
+      }, 100);
     }
 
     function buildFullReportMarkdown(job, faultKey, reqSev, rpm, mInfo) {
