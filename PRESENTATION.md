@@ -69,29 +69,29 @@ MechAgent ตอบโจทย์ด้วยการผสาน **Physics-In
 
 ```mermaid
 flowchart TD
-    User["👨‍💼 ผู้ใช้งาน (วิศวกร / ช่างเทคนิค)"] -->|HTTPS Browser| CF["🌐 Amazon CloudFront (Global CDN)"]
-    CF -->|Static Assets| S3Web["🪣 Amazon S3 (Static Website SPA)"]
+    User["วิศวกรและช่างเทคนิค"] -->|"HTTPS Browser"| CF["Amazon CloudFront (Global CDN)"]
+    CF -->|"Static Assets"| S3Web["Amazon S3 (Static Website SPA)"]
     
-    User -->|POST /analyze (Vibration Signal)| APIGW["🚪 Amazon API Gateway (HTTP API)"]
-    APIGW -->|Trigger Event| Lambda["⚡ AWS Lambda (mechagent-stack-agent)"]
+    User -->|"POST /analyze (Vibration Signal)"| APIGW["Amazon API Gateway (HTTP API)"]
+    APIGW -->|"Trigger Event"| Lambda["AWS Lambda (mechagent-stack-agent)"]
     
-    Lambda -->|Raw Signal Backup| S3Data["🪣 Amazon S3 (Data Bucket)"]
-    Lambda -->|Job State: QUEUED / ANALYZING| DDB["🗄️ Amazon DynamoDB (Jobs & Audit Table)"]
+    Lambda -->|"Raw Signal Backup"| S3Data["Amazon S3 (Data Bucket)"]
+    Lambda -->|"Job State: QUEUED / ANALYZING"| DDB[("Amazon DynamoDB (Jobs & Audit Table)")]
     
-    Lambda -->|Serverless Inference| SM["🧠 Amazon SageMaker Serverless Inference (MTL AI Model)"]
-    SM -->|Predictions: Fault, Deg %, RUL P05/50/95| Lambda
+    Lambda -->|"Serverless Inference"| SM["Amazon SageMaker Serverless (MTL AI Model)"]
+    SM -->|"Predictions: Fault, Deg %, RUL P05/50/95"| Lambda
     
-    Lambda -->|Physics Envelope FFT & RUL Math| Logic["📐 Physics Order Engine"]
-    Logic -->|Gatekeeper Filter (Anomaly Detected?)| Gate{"ผิดปกติวิกฤต?"}
+    Lambda -->|"Physics Envelope FFT & RUL Math"| Logic["Physics Order Engine"]
+    Logic -->|"Gatekeeper Filter (Anomaly Check)"| Gate{"ตรวจพบความผิดปกติวิกฤต?"}
     
-    Gate -->|ใช่: สร้างคู่มือ SOP & วิเคราะห์เชิงลึก| Bedrock["🤖 Amazon Bedrock (Nova Pro Agent)"]
-    Gate -->|ไม่ใช่: ปกติ| Save["บันทึกผลการตรวจวัดตามรอบ"]
+    Gate -->|"ใช่: สร้างคู่มือ SOP & วิเคราะห์เชิงลึก"| Bedrock["Amazon Bedrock (Nova Pro Agent)"]
+    Gate -->|"ไม่ใช่: บันทึกข้อมูลตามรอบ"| Save["บันทึกผลการตรวจวัดปกติ"]
     
-    Bedrock -->|Work Order & Alert| SNS["📢 Amazon SNS (Email / SMS / Alerts)"]
-    Lambda -->|Update Report & Job Done| DDB
+    Bedrock -->|"Work Order & Alert"| SNS["Amazon SNS (Email / SMS / Alerts)"]
+    Lambda -->|"Update Report & Job Done"| DDB
     
-    User -->|GET /reports/job_id| APIGW
-    DDB -.->|Return JSON Result| APIGW
+    User -->|"GET /reports/job_id"| APIGW
+    DDB -.->|"Return JSON Result"| APIGW
 ```
 
 ### รายการบริการ AWS ที่ใช้งานจริง (AWS Services Breakdown)
