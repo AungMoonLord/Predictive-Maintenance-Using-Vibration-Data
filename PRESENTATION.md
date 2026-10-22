@@ -69,29 +69,78 @@ MechAgent ตอบโจทย์ด้วยการผสาน **Physics-In
 
 ```mermaid
 flowchart TD
-    User["วิศวกรและช่างเทคนิค"] -->|"HTTPS Browser"| CF["Amazon CloudFront (Global CDN)"]
-    CF -->|"Static Assets"| S3Web["Amazon S3 (Static Website SPA)"]
-    
-    User -->|"POST /analyze (Vibration Signal)"| APIGW["Amazon API Gateway (HTTP API)"]
-    APIGW -->|"Trigger Event"| Lambda["AWS Lambda (mechagent-stack-agent)"]
-    
-    Lambda -->|"Raw Signal Backup"| S3Data["Amazon S3 (Data Bucket)"]
-    Lambda -->|"Job State: QUEUED / ANALYZING"| DDB[("Amazon DynamoDB (Jobs & Audit Table)")]
-    
-    Lambda -->|"Serverless Inference"| SM["Amazon SageMaker Serverless (MTL AI Model)"]
-    SM -->|"Predictions: Fault, Deg %, RUL P05/50/95"| Lambda
-    
-    Lambda -->|"Physics Envelope FFT & RUL Math"| Logic["Physics Order Engine"]
-    Logic -->|"Gatekeeper Filter (Anomaly Check)"| Gate{"ตรวจพบความผิดปกติวิกฤต?"}
-    
-    Gate -->|"ใช่: สร้างคู่มือ SOP & วิเคราะห์เชิงลึก"| Bedrock["Amazon Bedrock (Nova Pro Agent)"]
-    Gate -->|"ไม่ใช่: บันทึกข้อมูลตามรอบ"| Save["บันทึกผลการตรวจวัดปกติ"]
-    
-    Bedrock -->|"Work Order & Alert"| SNS["Amazon SNS (Email / SMS / Alerts)"]
-    Lambda -->|"Update Report & Job Done"| DDB
-    
-    User -->|"GET /reports/job_id"| APIGW
-    DDB -.->|"Return JSON Result"| APIGW
+    %% 1. Edge Delivery & Web Frontend
+    subgraph ClientLayer ["🌐 1. Edge Delivery & Web Frontend (Static SPA)"]
+        User["👨‍💻 Plant Engineer / Sensor Gateway"]
+        CF["Amazon CloudFront<br/>(Global CDN & SSL Termination)"]
+        S3Web["Amazon S3 Bucket<br/>(Static SPA Dashboard Hosting)"]
+    end
+
+    %% 2. API & Serverless Orchestration
+    subgraph ComputeLayer ["⚡ 2. API & Serverless Orchestrator"]
+        APIGW["Amazon API Gateway<br/>(HTTP REST API)"]
+        Lambda["AWS Lambda Orchestrator<br/>(mechagent-agent)"]
+        S3Data["Amazon S3 Bucket<br/>(Raw Vibration Data Backup)"]
+    end
+
+    %% 3. Physics & Multitask AI
+    subgraph AIEngineLayer ["🧠 3. Physics & Multitask AI Engine"]
+        SM["Amazon SageMaker Serverless<br/>(DistilHuBERT-MTL Inference)"]
+        Physics["Physics Order Engine<br/>(Envelope FFT & Kinematics)"]
+        Gate{"Gatekeeper Check:<br/>Critical Anomaly?"}
+    end
+
+    %% 4. Autonomous Agent & Persistence
+    subgraph GenAILayer ["🤖 4. Autonomous Agent & Persistence"]
+        Bedrock["Amazon Bedrock<br/>(Nova Pro Reasoning Agent)"]
+        DDB[("Amazon DynamoDB<br/>(Single-Table Store: Jobs/Audit)")]
+        SNS["Amazon SNS<br/>(Email / SMS / Work Orders)"]
+        SaveNormal["Log Periodic Telemetry<br/>(Baseline Record)"]
+    end
+
+    %% Data Flow Connections
+    User -->|"HTTPS Browser Access"| CF
+    CF -->|"Serve Static Assets"| S3Web
+
+    User -->|"POST /analyze (Vibration Signal)"| APIGW
+    APIGW -->|"Trigger Lambda Event"| Lambda
+
+    Lambda -->|"Raw Signal Backup"| S3Data
+    Lambda -->|"Invoke Serverless Model"| SM
+    SM -->|"Return: Fault, Deg %, RUL P05/50/95"| Lambda
+
+    Lambda -->|"Run Order Envelope & FFT"| Physics
+    Physics -->|"Check Health Degradation"| Gate
+
+    Gate -->|"YES: Anomaly Detected"| Bedrock
+    Gate -->|"NO: Normal Status"| SaveNormal
+    SaveNormal -->|"Save Periodic History"| DDB
+
+    Bedrock -->|"RAG / Inventory & Schedule Check"| DDB
+    Bedrock -->|"Dispatch Work Order & Alerts"| SNS
+    Lambda -->|"Update Report & Audit Log"| DDB
+
+    User -.->|"GET /reports/{job_id}"| APIGW
+    DDB -.->|"Return Diagnostic JSON"| APIGW
+
+    %% Styling & Color Palettes
+    classDef edgeStyle fill:#0F172A,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC;
+    classDef apiStyle fill:#1C1917,stroke:#F59E0B,stroke-width:2px,color:#F8FAFC;
+    classDef computeStyle fill:#1E1B4B,stroke:#818CF8,stroke-width:2px,color:#F8FAFC;
+    classDef aiStyle fill:#064E3B,stroke:#34D399,stroke-width:2px,color:#F8FAFC;
+    classDef gateStyle fill:#451A03,stroke:#FBBF24,stroke-width:2px,color:#F8FAFC;
+    classDef bedrockStyle fill:#3B0764,stroke:#C084FC,stroke-width:2px,color:#F8FAFC;
+    classDef ddbStyle fill:#172554,stroke:#60A5FA,stroke-width:2px,color:#F8FAFC;
+    classDef alertStyle fill:#4C0519,stroke:#FB7185,stroke-width:2px,color:#F8FAFC;
+
+    class User,CF,S3Web edgeStyle;
+    class APIGW apiStyle;
+    class Lambda,S3Data computeStyle;
+    class SM,Physics aiStyle;
+    class Gate gateStyle;
+    class Bedrock bedrockStyle;
+    class DDB,SaveNormal ddbStyle;
+    class SNS alertStyle;
 ```
 
 ### รายการบริการ AWS ที่ใช้งานจริง (AWS Services Breakdown)
