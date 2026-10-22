@@ -69,69 +69,68 @@ MechAgent ตอบโจทย์ด้วยการผสาน **Physics-In
 
 ```mermaid
 flowchart TD
-    %% 1. Edge Delivery & Web Frontend
-    subgraph ClientLayer ["🌐 1. Edge Delivery & Web Frontend (Static SPA)"]
-        User["👨‍💻 Plant Engineer / Sensor Gateway"]
-        CF["Amazon CloudFront<br/>(Global CDN & SSL Termination)"]
-        S3Web["Amazon S3 Bucket<br/>(Static SPA Dashboard Hosting)"]
+    %% Top Level Client
+    User["&nbsp;&nbsp;&nbsp;&nbsp; 👨‍💻 Plant Engineers & Industrial Vibration Sensors &nbsp;&nbsp;&nbsp;&nbsp;"]
+
+    %% Parallel Subgraphs
+    subgraph FrontendGroup ["&nbsp;&nbsp; 🌐 1. Web Presentation Layer (Static SPA) &nbsp;&nbsp;"]
+        CF["&nbsp;&nbsp;&nbsp;&nbsp; Amazon CloudFront &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (Global CDN & SSL) &nbsp;&nbsp;&nbsp;&nbsp;"]
+        S3Web["&nbsp;&nbsp;&nbsp;&nbsp; Amazon S3 Web Bucket &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (Static SPA Dashboard) &nbsp;&nbsp;&nbsp;&nbsp;"]
     end
 
-    %% 2. API & Serverless Orchestration
-    subgraph ComputeLayer ["⚡ 2. API & Serverless Orchestrator"]
-        APIGW["Amazon API Gateway<br/>(HTTP REST API)"]
-        Lambda["AWS Lambda Orchestrator<br/>(mechagent-agent)"]
-        S3Data["Amazon S3 Bucket<br/>(Raw Vibration Data Backup)"]
+    subgraph IngestionGroup ["&nbsp;&nbsp; ⚡ 2. API & Serverless Orchestration Layer &nbsp;&nbsp;"]
+        APIGW["&nbsp;&nbsp;&nbsp;&nbsp; Amazon API Gateway &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (HTTP REST API) &nbsp;&nbsp;&nbsp;&nbsp;"]
+        Lambda["&nbsp;&nbsp;&nbsp;&nbsp; AWS Lambda Orchestrator &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (mechagent-agent) &nbsp;&nbsp;&nbsp;&nbsp;"]
+        S3Data["&nbsp;&nbsp;&nbsp;&nbsp; Amazon S3 Data Bucket &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (Raw Signal Backup) &nbsp;&nbsp;&nbsp;&nbsp;"]
     end
 
-    %% 3. Physics & Multitask AI
-    subgraph AIEngineLayer ["🧠 3. Physics & Multitask AI Engine"]
-        SM["Amazon SageMaker Serverless<br/>(DistilHuBERT-MTL Inference)"]
-        Physics["Physics Order Engine<br/>(Envelope FFT & Kinematics)"]
-        Gate{"Gatekeeper Check:<br/>Critical Anomaly?"}
+    subgraph IntelligenceGroup ["&nbsp;&nbsp; 🧠 3. Physics & Multitask AI Layer &nbsp;&nbsp;"]
+        SM["&nbsp;&nbsp;&nbsp;&nbsp; Amazon SageMaker Serverless &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (DistilHuBERT-MTL Inference) &nbsp;&nbsp;&nbsp;&nbsp;"]
+        Physics["&nbsp;&nbsp;&nbsp;&nbsp; Physics Order Engine &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (Envelope FFT & Kinematics) &nbsp;&nbsp;&nbsp;&nbsp;"]
+        Gate{"&nbsp;&nbsp;&nbsp;&nbsp; Gatekeeper Filter: &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; Critical Anomaly? &nbsp;&nbsp;&nbsp;&nbsp;"}
     end
 
-    %% 4. Autonomous Agent & Persistence
-    subgraph GenAILayer ["🤖 4. Autonomous Agent & Persistence"]
-        Bedrock["Amazon Bedrock<br/>(Nova Pro Reasoning Agent)"]
-        DDB[("Amazon DynamoDB<br/>(Single-Table Store: Jobs/Audit)")]
-        SNS["Amazon SNS<br/>(Email / SMS / Work Orders)"]
-        SaveNormal["Log Periodic Telemetry<br/>(Baseline Record)"]
+    subgraph StorageAgentGroup ["&nbsp;&nbsp; 🤖 4. Autonomous Agent & Persistence Layer &nbsp;&nbsp;"]
+        Bedrock["&nbsp;&nbsp;&nbsp;&nbsp; Amazon Bedrock &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (Nova Pro Reasoning Agent) &nbsp;&nbsp;&nbsp;&nbsp;"]
+        DDB[("&nbsp;&nbsp;&nbsp;&nbsp; Amazon DynamoDB &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (Jobs & Telemetry Store) &nbsp;&nbsp;&nbsp;&nbsp;")]
+        SNS["&nbsp;&nbsp;&nbsp;&nbsp; Amazon SNS &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (Email / SMS Alerts) &nbsp;&nbsp;&nbsp;&nbsp;"]
+        SaveNormal["&nbsp;&nbsp;&nbsp;&nbsp; Periodic Telemetry Logger &nbsp;&nbsp;&nbsp;&nbsp;<br/>&nbsp;&nbsp;&nbsp;&nbsp; (Normal Baseline Check) &nbsp;&nbsp;&nbsp;&nbsp;"]
     end
 
-    %% Data Flow Connections
-    User -->|"HTTPS Browser Access"| CF
+    %% Edge Connections
+    User -->|"1. HTTPS Browser Access"| CF
     CF -->|"Serve Static Assets"| S3Web
 
-    User -->|"POST /analyze (Vibration Signal)"| APIGW
+    User -->|"2. POST /analyze (Vibration Signal)"| APIGW
     APIGW -->|"Trigger Lambda Event"| Lambda
 
     Lambda -->|"Raw Signal Backup"| S3Data
     Lambda -->|"Invoke Serverless Model"| SM
-    SM -->|"Return: Fault, Deg %, RUL P05/50/95"| Lambda
+    SM -->|"Return: Fault, Deg %, RUL"| Lambda
 
     Lambda -->|"Run Order Envelope & FFT"| Physics
     Physics -->|"Check Health Degradation"| Gate
 
-    Gate -->|"YES: Anomaly Detected"| Bedrock
+    Gate -->|"YES: Anomaly Confirmed"| Bedrock
     Gate -->|"NO: Normal Status"| SaveNormal
-    SaveNormal -->|"Save Periodic History"| DDB
+    SaveNormal -->|"Save Baseline History"| DDB
 
-    Bedrock -->|"RAG / Inventory & Schedule Check"| DDB
-    Bedrock -->|"Dispatch Work Order & Alerts"| SNS
-    Lambda -->|"Update Report & Audit Log"| DDB
+    Bedrock -->|"RAG / Check Parts & Schedule"| DDB
+    Bedrock -->|"Dispatch Work Order & Alert"| SNS
+    Lambda -->|"Update Report & Job Status"| DDB
 
-    User -.->|"GET /reports/{job_id}"| APIGW
+    User -.->|"3. GET /reports/{id}"| APIGW
     DDB -.->|"Return Diagnostic JSON"| APIGW
 
-    %% Styling & Color Palettes
-    classDef edgeStyle fill:#0F172A,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC;
-    classDef apiStyle fill:#1C1917,stroke:#F59E0B,stroke-width:2px,color:#F8FAFC;
-    classDef computeStyle fill:#1E1B4B,stroke:#818CF8,stroke-width:2px,color:#F8FAFC;
-    classDef aiStyle fill:#064E3B,stroke:#34D399,stroke-width:2px,color:#F8FAFC;
-    classDef gateStyle fill:#451A03,stroke:#FBBF24,stroke-width:2px,color:#F8FAFC;
-    classDef bedrockStyle fill:#3B0764,stroke:#C084FC,stroke-width:2px,color:#F8FAFC;
-    classDef ddbStyle fill:#172554,stroke:#60A5FA,stroke-width:2px,color:#F8FAFC;
-    classDef alertStyle fill:#4C0519,stroke:#FB7185,stroke-width:2px,color:#F8FAFC;
+    %% Styling & Colors with 13px font to prevent clipping
+    classDef edgeStyle fill:#0F172A,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC,font-size:13px;
+    classDef apiStyle fill:#1C1917,stroke:#F59E0B,stroke-width:2px,color:#F8FAFC,font-size:13px;
+    classDef computeStyle fill:#1E1B4B,stroke:#818CF8,stroke-width:2px,color:#F8FAFC,font-size:13px;
+    classDef aiStyle fill:#064E3B,stroke:#34D399,stroke-width:2px,color:#F8FAFC,font-size:13px;
+    classDef gateStyle fill:#451A03,stroke:#FBBF24,stroke-width:2px,color:#F8FAFC,font-size:13px;
+    classDef bedrockStyle fill:#3B0764,stroke:#C084FC,stroke-width:2px,color:#F8FAFC,font-size:13px;
+    classDef ddbStyle fill:#172554,stroke:#60A5FA,stroke-width:2px,color:#F8FAFC,font-size:13px;
+    classDef alertStyle fill:#4C0519,stroke:#FB7185,stroke-width:2px,color:#F8FAFC,font-size:13px;
 
     class User,CF,S3Web edgeStyle;
     class APIGW apiStyle;
