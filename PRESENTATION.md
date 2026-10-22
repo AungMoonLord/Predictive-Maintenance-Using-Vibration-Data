@@ -80,66 +80,66 @@ MechAgent ตอบโจทย์ด้วยการผสาน **Physics-In
 ### Flow การทำงานของระบบ (End-to-End Data Flow)
 
 ```mermaid
-flowchart LR
-    %% Modern Pastel & High-Contrast Palette
-    classDef clientClass fill:#0B192C,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC;
-    classDef computeClass fill:#0F172A,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC;
-    classDef aiClass fill:#062319,stroke:#34D399,stroke-width:2px,color:#F8FAFC;
-    classDef dangerClass fill:#261214,stroke:#F87171,stroke-width:2px,color:#F8FAFC;
-    classDef storageClass fill:#261E0B,stroke:#FBBF24,stroke-width:2px,color:#F8FAFC;
+flowchart TD
+    %% Modern High-Contrast Palette with Large Readable Typography
+    classDef edgeClass fill:#0F172A,stroke:#38BDF8,stroke-width:2.5px,color:#FFFFFF,font-size:15px;
+    classDef computeClass fill:#1E293B,stroke:#38BDF8,stroke-width:2.5px,color:#FFFFFF,font-size:15px;
+    classDef aiClass fill:#064E3B,stroke:#34D399,stroke-width:2.5px,color:#FFFFFF,font-size:15px;
+    classDef dangerClass fill:#4C0519,stroke:#FB7185,stroke-width:2.5px,color:#FFFFFF,font-size:15px;
+    classDef storageClass fill:#451A03,stroke:#FBBF24,stroke-width:2.5px,color:#FFFFFF,font-size:15px;
 
-    %% Layer 1: Edge & Presentation
-    subgraph L1 ["🌐 1. Edge & Delivery Layer"]
-        direction TB
-        USER["👨‍💻 Plant Engineers & Sensors"]:::clientClass
-        CF["☁️ Amazon CloudFront<br/><i>(Global CDN & Edge SSL)</i>"]:::clientClass
-        S3W["🗂️ Amazon S3 Web Bucket<br/><i>(Single Page Application)</i>"]:::clientClass
-        USER -->|"Browse UI"| CF
-        CF -->|"Serve Static SPA"| S3W
+    %% Level 1: Client & Delivery
+    subgraph S1 ["🌐 1. Presentation & Delivery Layer (Zero-Idle CDN)"]
+        direction LR
+        USER["👨‍💻 Plant Engineers & Sensors"]:::edgeClass
+        CF["☁️ Amazon CloudFront<br/><b>Global CDN & Edge SSL</b>"]:::edgeClass
+        S3W["🗂️ Amazon S3 Web Bucket<br/><b>Single Page Application</b>"]:::edgeClass
+        USER <-->|"HTTPS Access"| CF
+        CF <-->|"Static Assets"| S3W
     end
 
-    %% Layer 2: API & Orchestration
-    subgraph L2 ["⚡ 2. API & Orchestration Layer"]
-        direction TB
-        API["🚪 Amazon API Gateway<br/><i>(RESTful HTTP API)</i>"]:::computeClass
-        LAM["⚙️ AWS Lambda Core<br/><i>(Python 3.12 Arm64)</i>"]:::computeClass
-        S3D["📦 Amazon S3 Data<br/><i>(Raw Signals & Manuals)</i>"]:::storageClass
-        API -->|"Trigger event"| LAM
-        LAM -->|"Backup raw data"| S3D
+    %% Level 2: API & Core Orchestration
+    subgraph S2 ["⚡ 2. API & Serverless Orchestration Layer"]
+        direction LR
+        APIGW["🚪 Amazon API Gateway<br/><b>RESTful HTTP API (/analyze)</b>"]:::computeClass
+        LAMBDA["⚙️ AWS Lambda Orchestrator<br/><b>Python 3.12 (Arm64 Graviton)</b>"]:::computeClass
+        S3DATA["📦 Amazon S3 Data Bucket<br/><b>Raw Vibration Signals & Manuals</b>"]:::storageClass
+        APIGW -->|"Trigger Handler"| LAMBDA
+        LAMBDA -->|"Backup Raw Stream"| S3DATA
     end
 
-    USER -->|"POST /analyze"| API
+    USER -->|"POST /analyze (16 kHz)"| APIGW
 
-    %% Layer 3: Physics & AI Prognostics
-    subgraph L3 ["🧠 3. Physics & AI Prognostics"]
-        direction TB
-        PHY["📐 Kinematic Envelope Engine<br/><i>(BPFO / BPFI / BSF / FTF)</i>"]:::computeClass
-        MTL["🤖 1D-CNN Multi-Task Model<br/><i>(Fault & Severity S0-S4)</i>"]:::aiClass
-        RUL["⏳ Monte Carlo RUL Engine<br/><i>(P05 Safety Deadline)</i>"]:::dangerClass
-        PHY -->|"Cross-validate"| RUL
-        MTL -->|"Predict severity"| RUL
+    %% Level 3: Physics & AI Prognostics
+    subgraph S3 ["🧠 3. Physics & Multitask AI Layer"]
+        direction LR
+        PHYSICS["📐 Envelope FFT Engine<br/><b>Kinematics (BPFO / BPFI / BSF)</b>"]:::computeClass
+        MTL["🤖 1D-CNN Multi-Task AI<br/><b>Fault Class & Degradation %</b>"]:::aiClass
+        RUL["⏳ Monte Carlo RUL Engine<br/><b>P05 Safety Deadline Bounds</b>"]:::dangerClass
+        PHYSICS -->|"Guardrail"| RUL
+        MTL -->|"Severity Index"| RUL
     end
 
-    LAM -->|"Process FFT orders"| PHY
-    LAM -->|"Run inference"| MTL
+    LAMBDA -->|"Extract Envelope"| PHYSICS
+    LAMBDA -->|"Run Inference"| MTL
 
-    %% Layer 4: Autonomous Governance & Persistence
-    subgraph L4 ["🤖 4. Multi-Agent Governance & Storage"]
-        direction TB
-        BED["🧠 Amazon Bedrock<br/><i>(Nova Pro Multi-Agent)</i>"]:::computeClass
-        DDB[("💾 Amazon DynamoDB / SQLite<br/><i>(Dual-Engine 4 Tables)</i>")]:::storageClass
-        SNS["🔔 Amazon SNS Gateway<br/><i>(Emergency Alerts)</i>"]:::dangerClass
-        HITL["👤 Plant Supervisor<br/><i>(Human-in-the-Loop)</i>"]:::aiClass
+    %% Level 4: Autonomous Governance & Persistence
+    subgraph S4 ["🤖 4. Autonomous Governance & Dual-Engine Persistence"]
+        direction LR
+        BEDROCK["🧠 Amazon Bedrock (Nova Pro)<br/><b>Multi-Agent Debate & Reasoning</b>"]:::computeClass
+        DDB[("💾 Amazon DynamoDB / SQLite<br/><b>Dual-Engine 4 Operational Tables</b>")]:::storageClass
+        SNS["🔔 Amazon SNS Gateway<br/><b>SMS & Email Urgent Alerts</b>"]:::dangerClass
+        HITL["👤 Plant Supervisor<br/><b>Human-in-the-Loop 1-Click Sign-off</b>"]:::aiClass
 
-        BED <-->|"Query stock & SOPs"| DDB
-        BED -->|"Trigger emergency"| SNS
-        BED -->|"Request approval"| HITL
-        HITL -->|"1-Click sign-off"| DDB
+        BEDROCK <-->|"Query Parts & SOPs"| DDB
+        BEDROCK -->|"Publish Emergency"| SNS
+        BEDROCK -->|"Request Approval"| HITL
+        HITL -->|"Authorize Work Order"| DDB
     end
 
-    RUL -->|"P05 safety bound"| BED
-    LAM -->|"Persist job state"| DDB
-    USER -.->|"GET /reports/{id}"| API
+    RUL -->|"Supply P05 Metrics"| BEDROCK
+    LAMBDA -->|"Persist State"| DDB
+    USER -.->|"GET /reports/{id}"| APIGW
 ```
 
 ### รายการบริการ AWS ที่ใช้งานจริง (AWS Services Breakdown)
