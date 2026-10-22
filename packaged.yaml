@@ -31,6 +31,18 @@ Globals:
     - arm64
     Timeout: 300
     MemorySize: 512
+  HttpApi:
+    CorsConfiguration:
+      AllowOrigins:
+      - '*'
+      AllowMethods:
+      - GET
+      - POST
+      - OPTIONS
+      - HEAD
+      AllowHeaders:
+      - '*'
+      MaxAge: 3600
 Resources:
   MechTable:
     Type: AWS::DynamoDB::Table
