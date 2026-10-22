@@ -42,11 +42,24 @@ class MechAgentMTL(nn.Module):
         return self.heads(self.embed(input_values), phys)
 
 
-def multitask_loss(out, batch, task_log_vars):
+def multitask_loss(out, batch, task_log_vars, lambda_phys=0.25):
     l_cls = F.cross_entropy(out["logits"], batch["cls"], label_smoothing=0.05)
     l_deg = F.smooth_l1_loss(out["deg"], batch["deg"], beta=0.05)
     err2 = (out["rul_mu"] - batch["rul"]) ** 2
     l_rul = 0.5 * (torch.exp(-out["rul_logvar"]) * err2 + out["rul_logvar"]).mean() + err2.mean()
+    
+    # Physics-Informed Loss (L_physics):
+    # 1. Healthy penalty: normal bearings (cls == 0) must not predict high degradation (>0.15)
+    is_normal = (batch["cls"] == 0).float()
+    l_phys_normal = (F.relu(out["deg"] - 0.15) * is_normal).mean()
+    
+    # 2. Monotonic physical consistency: high degradation must correspond to low RUL
+    l_phys_mono = F.relu(out["deg"] + out["rul_mu"] - 1.25).mean()
+    l_phys = l_phys_normal + 0.5 * l_phys_mono
+
     s = task_log_vars.clamp(-3, 3)
-    total = torch.exp(-s[0]) * l_cls + s[0] + torch.exp(-s[1]) * l_deg + s[1] + l_rul
-    return total, {"cls": l_cls.item(), "deg": l_deg.item(), "rul": l_rul.item()}
+    total = (torch.exp(-s[0]) * l_cls + s[0] + 
+             torch.exp(-s[1]) * l_deg + s[1] + 
+             l_rul + lambda_phys * l_phys)
+             
+    return total, {"cls": l_cls.item(), "deg": l_deg.item(), "rul": l_rul.item(), "phys": l_phys.item()}

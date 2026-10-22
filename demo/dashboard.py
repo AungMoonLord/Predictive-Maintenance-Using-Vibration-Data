@@ -232,39 +232,60 @@ with st.sidebar:
     real_rpm = machine_info["rated_rpm"]
     
     if data_source_mode == "📂 ข้อมูลจริงจาก LAB (CWRU / XJTU-SY)":
-        st.info("💡 รองรับการอัปโหลดไฟล์จริง `.mat` (CWRU Bearing Data) และ `.csv` (XJTU-SY Time Series)")
+        st.info("💡 ข้อมูลจริงจากห้องทดลอง CWRU (Case Western Reserve) และ XJTU-SY (Xi'an Jiaotong University)")
         
-        uploaded_file = st.file_uploader(
-            "อัปโหลดไฟล์ข้อมูลจริง (.mat / .csv):",
-            type=["mat", "csv"],
-            help="อัปโหลดผลการวัดจริงจากเครื่องสั่นสะเทือนในห้องแล็บ"
+        lab_choice = st.radio(
+            "เลือกฐานข้อมูลแล็บ:",
+            ["🔬 XJTU-SY Run-to-Failure (Nested Time-series)", "⚙️ CWRU Bearing Dataset (.mat)"],
+            index=0
         )
-        
-        lab_presets = {
-            "-- เลือกไฟล์ตัวอย่างจากแล็บ --": None,
-            "🟢 CWRU: Normal_0.mat (ตลับลูกปืนปกติ Healthy)": "real_dataset_from_lab/CWRU/Normal_0.mat",
-            "🔴 CWRU: IR007_0.mat (แหวนใน Inner Race 0.007\")": "real_dataset_from_lab/CWRU/IR007_0.mat",
-            "🟠 CWRU: OR0076_0.mat (แหวนนอก Outer Race 0.007\")": "real_dataset_from_lab/CWRU/OR0076_0.mat",
-            "🟡 CWRU: B007_0.mat (เม็ดลูกปืน Ball Fault 0.007\")": "real_dataset_from_lab/CWRU/B007_0.mat",
-            "🔴 CWRU: IR021_0.mat (แหวนในเสียหายหนัก 0.021\")": "real_dataset_from_lab/CWRU/IR021_0.mat",
-            "🟠 CWRU: OR0216_0.mat (แหวนนอกเสียหายหนัก 0.021\")": "real_dataset_from_lab/CWRU/OR0216_0.mat",
-            "🟡 CWRU: B021_0.mat (เม็ดลูกปืนเสียหายหนัก 0.021\")": "real_dataset_from_lab/CWRU/B021_0.mat",
-            "🟢 XJTU-SY: Bearing1_1 - 1.csv (เริ่มต้นการทดสอบ)": "real_dataset_from_lab/XJTU-SY/XJTU-SY_Bearing_Datasets/35Hz12kN/Bearing1_1/1.csv",
-            "🟠 XJTU-SY: Bearing1_1 - 123.csv (เสื่อมสภาพขั้นวิกฤต)": "real_dataset_from_lab/XJTU-SY/XJTU-SY_Bearing_Datasets/35Hz12kN/Bearing1_1/123.csv",
-        }
-        
-        chosen_preset = st.selectbox("หรือเลือกตัวอย่างจาก Lab Dataset ที่เตรียมไว้:", list(lab_presets.keys()))
         
         target_source = None
         source_name = ""
-        if uploaded_file is not None:
-            target_source = uploaded_file.getvalue()
-            source_name = uploaded_file.name
-        elif lab_presets[chosen_preset] is not None:
-            preset_path = BASE_DIR / lab_presets[chosen_preset]
-            if preset_path.exists():
-                target_source = str(preset_path)
-                source_name = preset_path.name
+        
+        if "XJTU-SY" in lab_choice:
+            xjtu_base = BASE_DIR / "real_dataset_from_lab" / "XJTU-SY" / "XJTU-SY_Bearing_Datasets"
+            cond_dirs = [d for d in xjtu_base.iterdir() if d.is_dir()] if xjtu_base.exists() else []
+            cond_names = [d.name for d in cond_dirs] if cond_dirs else ["40Hz10kN", "35Hz12kN", "37.5Hz11kN"]
+            
+            sel_cond = st.selectbox("เลือกสภาวะการทดสอบ (Condition):", cond_names)
+            
+            cond_path = xjtu_base / sel_cond
+            bearing_dirs = [d for d in cond_path.iterdir() if d.is_dir()] if cond_path.exists() else []
+            bearing_names = [d.name for d in bearing_dirs] if bearing_dirs else ["Bearing3_4", "Bearing1_1"]
+            
+            sel_bearing = st.selectbox("เลือกลูกปืนทดสอบ (Bearing):", bearing_names)
+            
+            b_path = cond_path / sel_bearing
+            csv_files = []
+            if b_path.exists():
+                # Critical requirement: sort numerically by integer stem!
+                csv_files = sorted([f for f in b_path.glob("*.csv")],
+                                   key=lambda p: int(p.stem) if p.stem.isdigit() else 999999)
+            
+            if csv_files:
+                file_idx = st.slider(
+                    f"ช่วงเวลาการทดสอบ (นาทีที่ 1 ถึง {len(csv_files)}):",
+                    min_value=1,
+                    max_value=len(csv_files),
+                    value=min(120, len(csv_files)),
+                    step=1,
+                    help="เลือกไฟล์ตามลำดับเวลา เพื่อดูวิวัฒนาการความเสื่อมสภาพ (Run-to-Failure Evolution)"
+                )
+                chosen_file = csv_files[file_idx - 1]
+                target_source = str(chosen_file)
+                source_name = f"{sel_cond}/{sel_bearing}/{chosen_file.name}"
+            else:
+                st.warning("ไม่พบไฟล์ CSV ในโฟลเดอร์นี้")
+        else:
+            cwru_base = BASE_DIR / "real_dataset_from_lab" / "CWRU"
+            mat_files = sorted([f for f in cwru_base.glob("*.mat")]) if cwru_base.exists() else []
+            mat_names = [f.name for f in mat_files] if mat_files else ["Normal_0.mat", "IR007_0.mat", "OR0076_0.mat"]
+            
+            sel_mat = st.selectbox("เลือกไฟล์ทดสอบ CWRU (.mat):", mat_names)
+            if mat_files:
+                target_source = str(cwru_base / sel_mat)
+                source_name = f"CWRU/{sel_mat}"
                 
         if target_source is not None:
             try:
@@ -281,18 +302,16 @@ with st.sidebar:
                 st.success(f"✅ โหลดข้อมูลสำเร็จ: `{source_name}`")
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.metric("ขนาดไฟล์/จำนวนจุด", f"{len(raw_s):,} pts")
-                    st.metric("หน้าต่างนำเข้าวิเคราะห์", f"{len(real_signal):,} pts")
+                    st.metric("ความยาวข้อมูลดิบ", f"{len(raw_s):,} pts")
+                    st.metric("Resampled Signal", f"{len(real_signal):,} pts")
                 with c2:
-                    st.metric("ความเร็วรอบที่ตรวจพบ", f"{real_rpm:.0f} RPM")
+                    st.metric("ความเร็วรอบเพลา", f"{real_rpm:.0f} RPM")
                     rms_val = float(np.sqrt(np.mean(real_signal**2)))
                     st.metric("RMS Level", f"{rms_val:.3f} g")
                     
                 real_rpm = st.number_input("ปรับแต่งความเร็วรอบเพลา (RPM):", min_value=300, max_value=6000, value=int(real_rpm), step=50)
             except Exception as ex:
                 st.error(f"เกิดข้อผิดพลาดในการโหลดไฟล์: {ex}")
-        else:
-            st.warning("⚠️ กรุณาอัปโหลดไฟล์หรือเลือกตัวอย่างข้อมูลจากรายการด้านบน")
             
         sim_fault = "normal"
         sim_sev = 0.5
@@ -302,7 +321,7 @@ with st.sidebar:
         with col_preset1:
             if st.button("ปกติ (Healthy)", use_container_width=True):
                 st.session_state["sim_fault"] = "normal"
-                st.session_state["sim_sev"] = 0.05
+                st.session_state["sim_sev"] = 0.0
                 st.session_state["sim_rpm"] = machine_info["rated_rpm"]
         with col_preset2:
             if st.button("วิกฤต (Severe)", use_container_width=True):
@@ -326,13 +345,22 @@ with st.sidebar:
             format_func=lambda f: fault_labels[f]
         )
         
-        sim_sev = st.slider(
-            "ระดับความรุนแรง (Severity):",
-            0.0, 1.0,
-            float(st.session_state.get("sim_sev", 0.65)),
-            step=0.05,
-            help="0.0 = ของใหม่, 1.0 = เสียหายขั้นวิกฤต"
-        )
+        # Engineering guardrail: Lock Severity to 0.0 when fault is Healthy (normal)
+        if sim_fault == "normal":
+            sim_sev = 0.0
+            st.slider(
+                "ระดับความรุนแรง (Severity):",
+                0.0, 1.0, 0.0, step=0.05, disabled=True,
+                help="🛡️ Guardrail: รูปแบบปกติ (Healthy) ถูกล็อกค่า Severity ให้เป็น 0.0 เสมอตามหลักวิศวกรรม"
+            )
+        else:
+            sim_sev = st.slider(
+                "ระดับความรุนแรง (Severity):",
+                0.0, 1.0,
+                float(st.session_state.get("sim_sev", 0.65)),
+                step=0.05,
+                help="0.0 = ของใหม่, 1.0 = เสียหายขั้นวิกฤต"
+            )
         
         sim_rpm = st.slider(
             "ความเร็วรอบเพลา (RPM):",
@@ -341,7 +369,7 @@ with st.sidebar:
             step=50
         )
         
-    mc_samples = st.slider("Monte Carlo Dropout Samples:", 1, 20, 10, help="ประเมิน Epistemic Uncertainty ของ RUL")
+    mc_samples = st.slider("Monte Carlo Dropout Samples:", min_value=50, max_value=200, value=100, step=10, help="ประเมิน Epistemic Uncertainty ของ RUL ให้มีเสถียรภาพทางสถิติ (P05 <= P50 <= P95)")
     
     st.markdown("---")
     analyze_btn = st.button("🚀 วิเคราะห์ความสั่นสะเทือน (Analyze Vibration)", type="primary", use_container_width=True)
@@ -395,9 +423,50 @@ if analyze_btn:
                     pred = predictor.predict(signal, active_rpm, bearing=bearing_key, mc_samples=mc_samples)
                     job_id = f"LOCAL-{int(time.time()*1000)%1000000}"
                     rep = build_report(pred, machine_info, now=datetime.now(BKK), job_id=job_id)
+                    
+                    # Run Multi-Agent Collaborative Debate
+                    from agent.agent_core import run_agent
+                    ctx = {
+                        "job_id": job_id,
+                        "machine_id": machine_key,
+                        "rpm": active_rpm,
+                        "bearing_model": bearing_model,
+                        "prediction": pred,
+                        "report": rep,
+                        "deadline_iso": rep["summary"]["replace_by_iso"],
+                        "brief": {
+                            "job_id": job_id,
+                            "machine_id": machine_key,
+                            "rpm": active_rpm,
+                            "report_summary": rep["summary"]
+                        }
+                    }
+                    agent_res = run_agent(ctx)
+                    
+                    # Log telemetry to real database
+                    try:
+                        from db import get_db
+                        get_db().log_telemetry(
+                            machine_id=machine_key,
+                            rpm=active_rpm,
+                            rms=float(pred.get("features", {}).get("rms", 0.5)),
+                            kurtosis=float(pred.get("features", {}).get("kurtosis", 3.0)),
+                            predicted_fault=pred["fault"],
+                            confidence=float(pred["confidence"]),
+                            degradation_pct=float(pred["degradation_pct"]),
+                            rul_p05=float(pred["rul_hours"]["p05"]),
+                            rul_p50=float(pred["rul_hours"]["p50"]),
+                            rul_p95=float(pred["rul_hours"]["p95"]),
+                            urgency=rep["summary"].get("urgency", "LOW")
+                        )
+                    except Exception as db_err:
+                        print("DB logging note:", db_err)
+                        
                     st.session_state["analysis_result"] = {
                         "prediction": pred,
                         "report": rep,
+                        "agent": agent_res,
+                        "plan": agent_res.get("work_order"),
                         "job_id": job_id,
                         "machine": machine_info,
                         "time": datetime.now(BKK),
@@ -620,6 +689,44 @@ if res:
             )
             st.plotly_chart(fig_prob, use_container_width=True)
 
+        # Historical Degradation Curve from Real Database (Phase 4)
+        try:
+            from db import get_db
+            telemetry_rows = get_db().get_telemetry_history(machine_key, limit=35)
+            if telemetry_rows and len(telemetry_rows) > 1:
+                st.subheader("📈 แนวโน้มความเสื่อมสภาพย้อนหลัง (Historical Degradation & Telemetry Curve)")
+                st.caption(f"ข้อมูลจริงที่จัดเก็บบน Database สำหรับเครื่อง `{machine_key}` ({len(telemetry_rows)} ช่วงเวลาทดสอบ)")
+                df_telem = pd.DataFrame(telemetry_rows)
+                
+                fig_hist = go.Figure()
+                fig_hist.add_trace(go.Scatter(
+                    x=df_telem["timestamp"],
+                    y=df_telem["degradation_pct"],
+                    mode="lines+markers",
+                    name="Degradation (%)",
+                    line=dict(color="#f43f5e", width=2.5),
+                    marker=dict(size=6)
+                ))
+                fig_hist.add_trace(go.Scatter(
+                    x=df_telem["timestamp"],
+                    y=df_telem["rms"] * 40,
+                    mode="lines",
+                    name="Vibration RMS (scaled x40)",
+                    line=dict(color="#38bdf8", width=1.5, dash="dot")
+                ))
+                fig_hist.update_layout(
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(30, 41, 59, 0.4)",
+                    font={'color': "#f8fafc", 'family': "Inter"},
+                    yaxis_title="Degradation Index (%)",
+                    height=280,
+                    margin=dict(l=20, r=20, t=30, b=20),
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+                st.plotly_chart(fig_hist, use_container_width=True)
+        except Exception:
+            pass
+
     # ----------------- TAB 2: SIGNAL & PHYSICS SPECTRUM -----------------
     with tab_physics:
         col_sig1, col_sig2 = st.columns([2, 1])
@@ -767,28 +874,82 @@ if res:
         progress_val = checked_count / max(1, len(standard_sop))
         st.progress(progress_val, text=f"ความคืบหน้าการทำงาน: {checked_count}/{len(standard_sop)} ขั้นตอน ({progress_val*100:.0f}%)")
 
-    # ----------------- TAB 4: AGENT REASONING & WORK ORDER -----------------
+    # ----------------- TAB 4: MULTI-AGENT COLLABORATIVE DEBATE & WORK ORDER -----------------
     with tab_agent:
-        st.markdown("<div class='section-title'>🧠 แผนการซ่อมบำรุงและการอนุมัติ (Agent Plan & Work Order Approval)</div>", unsafe_allow_html=True)
+        st.markdown("<div class='section-title'>🧠 สถาปัตยกรรม Multi-Agent Collaborative Debate & การสั่งการอัตโนมัติ</div>", unsafe_allow_html=True)
+        st.caption("การโต้แย้งและร่วมตัดสินใจระหว่าง 3 AI Sub-Agents: Safety vs Operations & Economics สรุปโดย Arbiter Agent")
         
+        agent_data = res.get("agent") or {}
+        debate_turns = agent_data.get("debate", [])
+        
+        # Display 3-Agent Collaborative Debate Cards
+        if debate_turns:
+            for turn in debate_turns:
+                agent_name = turn.get("agent", "")
+                agent_role = turn.get("role", "")
+                msg = turn.get("message", "")
+                
+                if "Safety" in agent_name:
+                    b_color = "#ef4444"
+                    bg_color = "rgba(239, 68, 68, 0.08)"
+                    icon = "🛡️"
+                    badge_cls = "badge-red"
+                elif "Operations" in agent_name:
+                    b_color = "#f59e0b"
+                    bg_color = "rgba(245, 158, 11, 0.08)"
+                    icon = "🏭"
+                    badge_cls = "badge-yellow"
+                else:
+                    b_color = "#38bdf8"
+                    bg_color = "rgba(56, 189, 248, 0.08)"
+                    icon = "⚖️"
+                    badge_cls = "badge-blue"
+                    
+                st.markdown(f"""
+                <div style="background:{bg_color}; border-left:4px solid {b_color}; border-radius:6px; padding:14px; margin-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span style="font-weight:700; color:{b_color};">{icon} {agent_name}</span>
+                        <span class="badge {badge_cls}">{agent_role}</span>
+                    </div>
+                    <div style="font-size:0.92rem; line-height:1.6; color:#f1f5f9;">{msg}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+        # Work Order & HITL Approval
+        st.markdown("---")
         col_plan1, col_plan2 = st.columns([3, 2])
         with col_plan1:
-            st.markdown("##### ข้อเสนอแผนงานจาก AI Agent")
+            st.markdown("##### 📝 ใบสั่งซ่อมบำรุงและมาตรการควบคุม (Work Order Execution)")
             planned_start = datetime.now(BKK) + timedelta(hours=min(rul.get('p05', 24) * 0.5, 48))
             
             st.write(f"• **งานที่ต้องปฏิบัติ:** {s.get('recommended_action')}")
             st.write(f"• **กำหนดเริ่มงาน:** `{planned_start:%d/%m/%Y %H:%M}` น. (ก่อนเส้นตาย P05)")
-            st.write(f"• **อะไหล่ที่ใช้:** `{bearing_model}` (คลัง {SPARE_PARTS_DB.get(bearing_model, {}).get('location', '-')})")
-            st.write(f"• **เครื่องสำรอง:** {machine_info.get('standby_machine') or 'ไม่มีเครื่องสำรอง (ต้องขอ Downtime)'}")
+            st.write(f"• **อะไหล่เป้าหมาย:** `{bearing_model}`")
+            st.write(f"• **เครื่องสำรอง:** {machine_info.get('standby_machine') or 'ไม่มีเครื่องสำรอง'}")
+            
+            derate_info = agent_data.get("derating")
+            if derate_info and derate_info.get("derated_rpm"):
+                st.info(f"⚙️ **Derating Plan Active:** ปรับความเร็วรอบเหลือ `{derate_info['derated_rpm']:.0f} RPM` (ลดลง {derate_info.get('rpm_reduction_pct')}%) เพื่อยืดอายุไปถึงรอบหยุดซ่อมตามแผน")
             
             st.markdown("---")
-            st.markdown("##### การอนุมัติของหัวหน้างาน (Human-in-the-Loop)")
+            st.markdown("##### การอนุมัติของหัวหน้างาน (Human-in-the-Loop Approval)")
             
             btn_app1, btn_app2, btn_app3 = st.columns(3)
             with btn_app1:
-                if st.button("✅ อนุมัติแผน (Approve)", type="primary", use_container_width=True):
+                if st.button("✅ อนุมัติใบสั่งซ่อม (Approve)", type="primary", use_container_width=True):
                     st.session_state["approval_status"] = "APPROVED"
                     st.session_state["approval_token"] = approval_token(res["job_id"], "approve")
+                    try:
+                        from db import get_db
+                        db_obj = get_db()
+                        # Reserve spare part and update DB
+                        wo_id = agent_data.get("work_order", {}).get("work_order_id") or f"WO-{res['job_id']}"
+                        db_obj.update_work_order_status(wo_id, "APPROVED", approver="Chief Reliability Engineer")
+                        db_obj.reserve_spare_part(bearing_model, 1)
+                        st.session_state["db_approved"] = True
+                    except Exception as ex_db:
+                        print("DB approval exception:", ex_db)
+                        
             with btn_app2:
                 if st.button("⏳ เลื่อน 24 ชม. (Postpone)", use_container_width=True):
                     st.session_state["approval_status"] = "POSTPONED_24H"
@@ -800,18 +961,18 @@ if res:
                     
             status_current = st.session_state.get("approval_status", "PENDING_APPROVAL")
             status_badge = "badge-yellow" if status_current == "PENDING_APPROVAL" else ("badge-green" if status_current == "APPROVED" else "badge-red")
-            st.markdown(f"**สถานะปัจจุบัน:** <span class='badge {status_badge}'>{status_current}</span>", unsafe_allow_html=True)
+            st.markdown(f"**สถานะใบสั่งงาน:** <span class='badge {status_badge}'>{status_current}</span>", unsafe_allow_html=True)
             
             if status_current == "APPROVED":
-                st.success(f"ออกใบสั่งงาน (Work Order) เรียบร้อยแล้ว! รหัสยืนยัน: `{st.session_state.get('approval_token', '')}`")
+                st.success(f"✅ อนุมัติใบสั่งงานเรียบร้อยแล้ว! ตัดสต็อกอะไหล่ `{bearing_model}` ในระบบคลังสินค้าสำเร็จ (Token: `{st.session_state.get('approval_token', '')}`)")
                 
         with col_plan2:
-            st.markdown("##### กฎความปลอดภัย (Safety Guardrail)")
+            st.markdown("##### กฎความปลอดภัยและการควบคุมต้นทุน")
             st.markdown(f"""
             <div style="background:rgba(30, 41, 59, 0.4); border:1px solid rgba(148,163,184,0.15); border-radius:8px; padding:14px; font-size:0.9rem;">
-                <p>1. <b>Strict Deadline:</b> เวลาเริ่มงานต้องไม่เกินเส้นตาย P05 (<b>{s.get('replace_by_iso', '')[:16]}</b>)</p>
-                <p>2. <b>Spare Part Check:</b> หากอะไหล่ในคลังเป็น 0 ชิ้น ระบบจะบังคับให้เสนอสั่งซื้อด่วนหรือใช้รุ่นเทียบ</p>
-                <p>3. <b>Standby Unit First:</b> หากเครื่องจักรมี Standby ({machine_info.get('standby_machine')}) จะสลับการทำงานก่อนทันทีเพื่อเลี่ยง Downtime</p>
+                <p>1. <b>Strict Safety Deadline:</b> ต้องเริ่มซ่อมก่อนเส้นตาย P05 (<b>{s.get('replace_by_iso', '')[:16]}</b>) เด็ดขาด</p>
+                <p>2. <b>Zero-Energy LOTO:</b> ช่างทุกคนต้องคล้องกุญแจ Padlock ตรวจวัดแรงดันไฟฟ้าศูนย์ก่อนถอดชิ้นส่วน</p>
+                <p>3. <b>Fatigue Life Derating:</b> ยืดอายุ RUL ด้วยการปรับลด RPM ผ่าน VFD ช่วยประหยัดค่าเสียโอกาสการผลิตได้หลายหมื่นบาท</p>
             </div>
             """, unsafe_allow_html=True)
 

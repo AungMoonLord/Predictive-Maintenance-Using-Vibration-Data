@@ -3,8 +3,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "agent"))
+sys.path.insert(0, str(ROOT / "mcp_servers"))
 
 # Set default AWS env vars for tests
 os.environ.setdefault("AWS_REGION", "ap-southeast-1")

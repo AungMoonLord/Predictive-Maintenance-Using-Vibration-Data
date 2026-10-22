@@ -71,6 +71,7 @@ def analyze(event):
     lam.invoke(FunctionName=os.environ["SELF_FUNCTION_NAME"], InvocationType="Event",
                Payload=json.dumps({"mode": "worker", "job_id": job_id, "machine_id": req["machine_id"],
                                    "rpm": float(req["rpm"]), "bearing": req.get("bearing"),
+                                   "mc_samples": int(req.get("mc_samples", 100)),
                                    "s3_key": key, "api_base": api_base}).encode())
     return _resp(202, {"job_id": job_id, "status": "QUEUED", "status_url": f"{api_base}/reports/{job_id}"})
 
@@ -104,7 +105,8 @@ def worker(ev):
         r = smr.invoke_endpoint(EndpointName=os.environ["ENDPOINT_NAME"], ContentType="application/json",
                                 Accept="application/json",
                                 Body=json.dumps({"signal": raw["signal"], "fs": raw.get("fs", 16000),
-                                                 "rpm": ev["rpm"], "bearing": bearing, "mc_samples": 10}))
+                                                 "rpm": ev["rpm"], "bearing": bearing,
+                                                 "mc_samples": ev.get("mc_samples", 100)}))
         pred = json.loads(r["Body"].read())
         now = datetime.now(BKK)
         report = build_report(pred, profile, now=now, job_id=job_id)
@@ -118,8 +120,10 @@ def worker(ev):
         if trigger:
             update_job(job_id, status="AGENT_RUNNING", **result)
             ctx = {"job_id": job_id, "machine_id": mid, "api_base": ev["api_base"], "report": report,
+                   "prediction": pred, "rpm": ev["rpm"], "bearing_model": bearing,
                    "deadline_iso": report["summary"]["replace_by_iso"],
                    "brief": {"job_id": job_id, "machine_id": mid, "now": now.isoformat(),
+                             "rpm": ev["rpm"],
                              "safety_deadline_iso": report["summary"]["replace_by_iso"],
                              "gatekeeper_reasons": reasons, "report_summary": report["summary"],
                              "class_probs": pred["class_probs"]}}

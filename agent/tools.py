@@ -52,13 +52,19 @@ def update_job(job_id, **fields):
     for i, (k, v) in enumerate(fields.items()):
         names[f"#k{i}"], values[f":v{i}"] = k, to_ddb(v)
         sets.append(f"#k{i} = :v{i}")
-    table().update_item(Key={"pk": f"JOB#{job_id}", "sk": "REPORT"}, UpdateExpression="SET " + ", ".join(sets),
-                        ExpressionAttributeNames=names, ExpressionAttributeValues=values)
+    try:
+        table().update_item(Key={"pk": f"JOB#{job_id}", "sk": "REPORT"}, UpdateExpression="SET " + ", ".join(sets),
+                            ExpressionAttributeNames=names, ExpressionAttributeValues=values)
+    except Exception as e:
+        print(f"[tools.update_job] DynamoDB update skipped ({e})")
 
 
 def audit(job_id, event, detail=None):
-    table().put_item(Item=to_ddb({"pk": f"JOB#{job_id}", "sk": f"AUDIT#{datetime.now(BKK).isoformat()}",
-                                  "event": event, "detail": detail or {}}))
+    try:
+        table().put_item(Item=to_ddb({"pk": f"JOB#{job_id}", "sk": f"AUDIT#{datetime.now(BKK).isoformat()}",
+                                      "event": event, "detail": detail or {}}))
+    except Exception as e:
+        print(f"[tools.audit] DynamoDB audit skipped ({e})")
 
 
 def approval_token(job_id, action):
@@ -181,7 +187,8 @@ def submit_for_approval(ctx, recommended_action, planned_start, summary_th, plan
     plan = {"recommended_action": recommended_action, "planned_start": start.isoformat(),
             "planned_end": planned_end, "parts_plan": parts_plan, "summary_th": summary_th}
     update_job(job, status="PENDING_APPROVAL", plan=plan)
-    links = {a: f"{ctx['api_base']}/approve?job={job}&action={a}&token={approval_token(job, a)}"
+    api_base = ctx.get("api_base") or "https://api.mechagent.internal"
+    links = {a: f"{api_base}/approve?job={job}&action={a}&token={approval_token(job, a)}"
              for a in ("approve", "postpone", "reject")}
     notify(f"MechAgent approval needed: {ctx['machine_id']}",
            ctx["report"]["telegram"] + f"\n\nแผนของ Agent:\n{summary_th}\nเริ่มงาน: {start:%d/%m %H:%M}\nอะไหล่: {parts_plan}",

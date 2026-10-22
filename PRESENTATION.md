@@ -50,14 +50,26 @@ MechAgent ตอบโจทย์ด้วยการผสาน **Physics-In
    * ใช้เทคนิค Monte Carlo Dropout ประเมินช่วงความไม่แน่นอน (Confidence Interval: P05, P50, P95)
    * กำหนดเส้นตายการเปลี่ยนอะไหล่จากค่า **P05 (Worst-case Scenario)** เพื่อความปลอดภัยสูงสุด ป้องกันเครื่องจักรล็อกเฉียบพลัน
 
-3. **Autonomous Agentic Workflow & Human-in-the-Loop:**
-   * มี **Gatekeeper Filter** อัจฉริยะ คอยคัดกรองเฉพาะกรณีที่ตรวจพบความเสื่อมสภาพผิดปกติจริงเท่านั้น จึงจะสั่งงาน LLM (Amazon Bedrock) เพื่อประหยัดค่าใช้จ่าย
-   * ดึงคู่มือ SOP ซ่อมบำรุงและจับคู่อะไหล่คงคลัง (Spare Parts DB) ออกใบสั่งงาน (Work Order) ล่วงหน้า
-   * มีปุ่มอนุมัติสำหรับหัวหน้างาน (Approve / Postpone / Reject) พร้อมออก Cryptographic Verification Token
+3. **Multi-Server MCP Architecture (Model Context Protocol):**
+   * แยกขอบเขตการทำงานของเครื่องมือออกเป็น 4 Micro-MCP Servers อิสระ:
+     1. `physics_diagnostic_server`: ตรวจสอบความถี่ธรรมชาติ (BPFI, BPFO, BSF, FTF) ร่วมกับ Monte Carlo RUL
+     2. `cmms_inventory_server`: ตรวจสต็อกอะไหล่, จองอะไหล่, และออก Purchase Requisition (PR)
+     3. `production_scada_server`: ดึงตารางผลิต, คำนวณกลยุทธ์ลดรอบ VFD (Derating Strategy), และประเมินมูลค่าความเสียหาย
+     4. `safety_sop_server`: กำกับดูแลขั้นตอน Lockout/Tagout (LOTO) และสร้าง PDF ใบสั่งซ่อมภาษาไทย
+   
+4. **Multi-Agent Collaborative Debate Loop (ระบบโต้แย้งร่วมตัดสินใจ 3 บทบาท):**
+   * **Safety Agent:** ยึดถือเกณฑ์ ISO 10816 และเส้นตาย P05 อย่างเคร่งครัด ไม่อนุญาตให้ฝืนเดินเครื่องหากเสี่ยงต่อเพลาติดขัด (Seizure)
+   * **Operations & Financial Agent:** รักษาแผนการส่งมอบสินค้า คำนวณความคุ้มค่า และเสนอปรับลดความเร็วรอบ (Derating) ผ่าน VFD
+   * **Arbiter Agent (ผู้ประนีประนอม):** ตัดสินใจบนจุดสมดุลที่ดีที่สุด สั่งปรับลดความเร็วรอบชั่วคราวเพื่อประคองเครื่องไปจนถึงรอบหยุดซ่อมตามแผน (Planned Window) ช่วยประหยัดค่าเสียโอกาสการผลิตได้มหาศาล พร้อมจัดสรรอะไหล่และสร้างใบสั่งงาน
 
-4. **รองรับทั้งข้อมูล Simulation และ Data จริงจาก LAB:**
-   * รองรับการจำลองคลื่นสัญญาณตามหลักฟิสิกส์
-   * รองรับการอัปโหลดไฟล์ผลการทดสอบจริงจากห้องแล็บระดับโลก เช่น **CWRU Bearing Data (.mat)** และ **XJTU-SY (.csv)**
+5. **รองรับทั้งข้อมูล Simulation และ Nested Data จริงจาก LAB (CWRU & XJTU-SY):**
+   * รองรับการสตรีมและประมวลผลไฟล์จริงจากห้องแล็บระดับโลก: **CWRU (.mat)** และ **XJTU-SY Run-to-Failure (.csv)**
+   * แก้ไขตรรกะการเรียงลำดับไฟล์ด้วย `int(p.stem)` เพื่อเรียงลำดับไทม์ไลน์ความเสื่อมสภาพตามเวลาจริง 100%
+   * ใช้ Polyphase Resampling ปรับความถี่สัญญาณให้เป็น 16 kHz สม่ำเสมอ ไม่เกิด Artifact
+
+6. **Serverless Database & Human-in-the-Loop (HITL) Approval:**
+   * สถาปัตยกรรม Dual Engine: SQLite (`data/mechagent.db`) สำหรับ Local / Test และ DynamoDB สำหรับ Production
+   * ระบบตัดสต็อกอะไหล่อัตโนมัติเมื่อหัวหน้างานกด "อนุมัติใบสั่งซ่อม" พร้อมออกไฟล์ PDF ภาษาไทยแบบ Vector ทันที
 
 ---
 

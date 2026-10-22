@@ -115,9 +115,19 @@ def build_report(pred, machine=None, now=None, job_id=None):
     beyond = rul["p50"] >= 0.95 * cap
     replace_by = now + timedelta(hours=deadline_h)
     dur, exp = split_duration(deadline_h), split_duration(rul["p50"])
-    urgency = ("EMERGENCY" if deadline_h < 24 else "HIGH" if deadline_h < 72
-               else "MEDIUM" if deadline_h < 168 else "LOW")
     phys = pred.get("physics", {})
+    # Monotonic Urgency Mapping (Strict Engineering Guardrail)
+    # Never declare EMERGENCY on early/moderate wear (S1/S2)
+    tf = phys.get("time_features", {}) if isinstance(phys, dict) else {}
+    kurt = float(tf.get("kurtosis", 3.0)) if tf else 3.0
+    if deg < 25.0:
+        urgency = "NORMAL" if deg < 10.0 else "MONITOR"
+    elif deg < 50.0:
+        urgency = "PLAN_MAINTENANCE"
+    elif deg < 75.0:
+        urgency = "URGENT" if deadline_h < 72 else "SCHEDULED"
+    else:  # deg >= 75.0 (S4 Critical)
+        urgency = "EMERGENCY" if (deadline_h <= 48.0 or kurt > 4.5) else "CRITICAL"
     pf = phys.get("physics_fault", "normal")
     if fault == "normal":
         phys_txt = "ไม่พบ peak ผิดปกติ" if pf == "normal" else f"พบ peak ที่ {FAULT_TH[pf]} → แนะนำตรวจซ้ำ"

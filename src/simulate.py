@@ -50,6 +50,10 @@ def fault_impulse_train(fault, f_fault, fr, ftf_hz, amp, rng, fs, n):
 
 def simulate_signal(fault, severity, rpm, rng, fs=FS, n=N_SAMPLES, bearing="6205"):
     """severity in [0,1] (0 = new, 1 = failure). Returns acceleration signal (g)."""
+    if fault == "normal":
+        severity = 0.0
+    else:
+        severity = float(np.clip(severity, 0.0, 1.0))
     t = np.arange(n) / fs
     fr = rpm / 60.0
     orders = get_bearing(bearing).fault_orders()

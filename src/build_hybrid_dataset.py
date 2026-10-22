@@ -10,12 +10,16 @@ from pathlib import Path
 import json
 import numpy as np
 import scipy.io as sio
-from scipy.signal import resample
+from scipy.signal import resample_poly
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mech_config import FS, N_SAMPLES, CLASSES, RUL_CAP_H
 from bearing_physics import physics_features
+from real_dataset import (
+    discover_cwru_files, discover_xjtu_conditions,
+    load_cwru_mat, load_xjtu_csv, prepare_signal_window
+)
 import simulate
 
 CWRU_DIR = Path("real_dataset_from_lab/CWRU")

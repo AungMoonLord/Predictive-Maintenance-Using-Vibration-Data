@@ -2,8 +2,12 @@
 from dataclasses import dataclass
 
 import numpy as np
-from scipy import signal as sps
-from scipy import stats
+try:
+    from scipy import signal as sps
+    from scipy import stats
+    _HAS_SCIPY = True
+except ImportError:
+    _HAS_SCIPY = False
 
 ENV_BAND_HZ = (1000.0, 5000.0)   # band-pass to isolate bearing impacts from machine noise
 N_HARMONICS = 3
@@ -43,8 +47,20 @@ def get_bearing(key) -> BearingGeometry:
 def envelope_spectrum(x, fs, band=ENV_BAND_HZ):
     x = np.asarray(x, dtype=np.float64)
     x = x - x.mean()
-    sos = sps.butter(4, [band[0], min(band[1], 0.45 * fs)], btype="bandpass", fs=fs, output="sos")
-    env = np.abs(sps.hilbert(sps.sosfiltfilt(sos, x)))
+    if _HAS_SCIPY:
+        sos = sps.butter(4, [band[0], min(band[1], 0.45 * fs)], btype="bandpass", fs=fs, output="sos")
+        env = np.abs(sps.hilbert(sps.sosfiltfilt(sos, x)))
+    else:
+        N = len(x)
+        X = np.fft.fft(x)
+        h = np.zeros(N)
+        if N % 2 == 0:
+            h[0] = h[N // 2] = 1
+            h[1:N // 2] = 2
+        else:
+            h[0] = 1
+            h[1:(N + 1) // 2] = 2
+        env = np.abs(np.fft.ifft(X * h))
     env -= env.mean()
     win = np.hanning(len(env))
     spec = np.abs(np.fft.rfft(env * win)) * 2.0 / win.sum()
@@ -69,8 +85,16 @@ def time_features(x):
     x = x - x.mean()
     rms = float(np.sqrt(np.mean(x ** 2)) + 1e-12)
     peak = float(np.max(np.abs(x)))
+    var = float(np.mean(x ** 2))
+    std = np.sqrt(var) + 1e-12
+    if _HAS_SCIPY:
+        kurt = float(stats.kurtosis(x, fisher=False))
+        skew = float(stats.skew(x))
+    else:
+        kurt = float(np.mean(x ** 4) / (var ** 2 + 1e-12))
+        skew = float(np.mean(x ** 3) / (std ** 3 + 1e-12))
     return {"rms": rms, "peak": peak, "crest": peak / rms,
-            "kurtosis": float(stats.kurtosis(x, fisher=False)), "skewness": float(stats.skew(x))}
+            "kurtosis": kurt, "skewness": skew}
 
 
 PHYS_FEATURE_NAMES = (["log_rms", "crest", "log_kurtosis", "skewness"]

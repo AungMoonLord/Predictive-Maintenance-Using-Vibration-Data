@@ -69,38 +69,82 @@ In industrial manufacturing, **rolling element bearing failures account for over
 
 ## 🏗️ System Architecture
 
-```
-                       ┌──────────────────────── TRAINING PIPELINE (Offline / S3) ────────────────────────┐
-                       │ simulate.py ──► S3 Data ──► SageMaker Training Job (GPU Spot / DistilHuBERT-MTL) │
-                       │                               └─► S3 model.tar.gz ──► SageMaker Serverless       │
-                       └──────────────────────────────────────────────────────────────────────────────────┘
+### Multi-Server MCP & Multi-Agent Collaborative Architecture
+```mermaid
+flowchart TD
+    subgraph DataSources["Industrial Vibration Data Layer"]
+        CWRU["CWRU Bearing Data\n(12 kHz resampled to 16 kHz)"]
+        XJTU["XJTU-SY Run-to-Failure\n(25.6 kHz resampled to 16 kHz)"]
+        SIM["Physics Simulation Engine\n(ISO 10816 + Pink Noise)"]
+    end
 
-     Industrial Sensors /          HTTPS GET
-       Plant Engineers ──────────────────────────────────────────┐
-              │                                                  ▼
-              │                                      ┌──────────────────────┐
-              │                                      │   Amazon CloudFront  │ (Global CDN + SSL)
-              │                                      └──────────┬───────────┘
-              │                                                 │
-              │                                                 ▼
-              │                                      ┌──────────────────────┐
-              │                                      │   Amazon S3 Bucket   │ (Static Single Page App)
-              │                                      └──────────────────────┘
-              │
-              │ POST /analyze (Vibration Signal)
-              ▼
-   ┌──────────────────────┐      Proxy (async)       ┌────────────────────────────────────────────────────┐
-   │  Amazon API Gateway  │─────────────────────────►│              AWS Lambda Orchestrator               │
-   │      (HTTP API)      │                          │                  (mechagent-agent)                 │
-   └──────────┬───────────┘                          └─────┬──────────────┬──────────────┬──────────────┬─┘
-              │                                            │              │              │              │
-              │ GET /reports/{id}                          │ invoke       │ Converse     │ DynamoDB     │
-              ▼                                            ▼              ▼              ▼              ▼
-   ┌──────────────────────┐                  ┌─────────────────┐ ┌─────────────┐ ┌──────────────┐ ┌──────────────┐
-   │ Interactive Web App  │                  │ SageMaker       │ │ Amazon      │ │ Amazon       │ │ Amazon SNS   │
-   │ (Tailwind + Plotly)  │                  │ Serverless      │ │ Bedrock     │ │ DynamoDB     │ │ Email Alert  │
-   └──────────────────────┘                  │ (MTL Inference) │ │ (Nova Pro)  │ │ (Single-Tab) │ │ + Work Order │
-                                             └─────────────────┘ └─────────────┘ └──────────────┘ └──────────────┘
+    subgraph MTLModel["Physics-Informed MTL Model"]
+        BB["1D-CNN Feature Backbone\n(Order Tracking + Bandpass 1-5 kHz)"]
+        H1["Fault Classification Head\n(Normal / Inner / Outer / Ball / Cage)"]
+        H2["Degradation Stage Head\n(0-100% S1 to S4)"]
+        H3["Monte Carlo RUL Head\n(P05 <= P50 <= P95 Bounds)"]
+        BB --> H1
+        BB --> H2
+        BB --> H3
+    end
+    DataSources --> BB
+
+    subgraph MCPServers["Model Context Protocol (MCP) Multi-Server Cluster"]
+        MCP1["physics_diagnostic_server\n- analyze_vibration_signal\n- calculate_envelope_orders"]
+        MCP2["cmms_inventory_server\n- check_spare_parts_stock\n- reserve_spare_parts\n- create_work_order"]
+        MCP3["production_scada_server\n- get_production_plan\n- calculate_derating_strategy\n- evaluate_downtime_financial_impact"]
+        MCP4["safety_sop_server\n- get_safety_loto_procedure\n- generate_thai_maintenance_pdf"]
+    end
+
+    subgraph AgentDebate["Collaborative Multi-Agent Debate Loop"]
+        SA["Safety Agent\n- Risk & ISO 10816 limits\n- Enforce P05 Safety Deadline\n- Zero-Energy LOTO SOP"]
+        OA["Operations & Financial Agent\n- SCADA Batch Schedules\n- Downtime Loss Calculation\n- ISO 281 Derating Optimization"]
+        ARB["Arbiter Agent\n- Reconcile Safety vs Production\n- Approve Derated Safe Operation\n- Generate Thai Action Plan & Work Order"]
+        SA <-->|"Risk vs Production Trade-off"| OA
+        SA --> ARB
+        OA --> ARB
+    end
+
+    MCPServers <--> AgentDebate
+    MTLModel --> MCPServers
+
+    subgraph PersistenceCloud["100% Serverless AWS Infrastructure (Singapore ap-southeast-1)"]
+        APIGW["Amazon API Gateway\n(CORS + REST HTTP API)"]
+        LAMBDA["AWS Lambda Orchestrator\n(ARM64 Python 3.12)"]
+        DDB["Amazon DynamoDB / SQLite\n(Dual Engine db.py)"]
+        S3CF["CloudFront + S3 Static SPA\n(Dark Industrial Dashboard)"]
+        APIGW --> LAMBDA
+        LAMBDA --> DDB
+        S3CF --> APIGW
+    end
+    ARB --> PersistenceCloud
+```
+
+### Multi-Agent Debate & Decision Workflow
+```mermaid
+sequenceDiagram
+    autonumber
+    participant S as Sensor / Lab Stream
+    participant M as MTL Model & Physics
+    participant SA as Safety Agent
+    participant OA as Operations & Financial Agent
+    participant ARB as Arbiter Agent
+    participant DB as CMMS Database / S3
+    participant HITL as Maintenance Supervisor
+
+    S->>M: Vibration Acceleration Signal (16 kHz)
+    M->>SA: Predicted Fault, Deg % (S3) & RUL P05 (18h)
+    SA->>SA: Evaluate ISO 10816 vibration limits & LOTO rules
+    SA-->>ARB: Alert: Catastrophic spalling risk! Stop before P05 deadline (18h)
+    M->>OA: Production batch status & downtime cost ($2,000/hr)
+    OA->>OA: Check planned maintenance window (in 28 hours)
+    OA->>OA: Calculate VFD Derating: -15% RPM extends L10h fatigue by +42% to 32h
+    OA-->>ARB: Proposal: Derate speed to 85% to reach planned stop and save $45,000
+    ARB->>ARB: Synthesize consensus: Approve Derating + 15-min vibration monitoring
+    ARB->>DB: Reserve spare bearing & issue Work Order
+    ARB->>DB: Compile Thai Maintenance PDF Report (Sarabun font)
+    ARB->>HITL: Dispatch notification with 1-click Approve / Reject token
+    HITL->>DB: Supervisor Approves -> Inventory stock decremented & WO activated
 ```
 
 ### AWS Services & Roles

@@ -237,7 +237,7 @@
 
           <div>
             <label class="block text-xs text-slate-400 mb-1">รูปแบบความเสียหาย:</label>
-            <select id="sel-fault" class="w-full bg-[#0e1117] border border-slate-700 rounded-md px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500">
+            <select id="sel-fault" onchange="onFaultChange(this.value)" class="w-full bg-[#0e1117] border border-slate-700 rounded-md px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500">
               <option value="normal">🟢 ปกติ (Healthy)</option>
               <option value="inner_race">🔴 แหวนรอบใน (Inner Race Fault)</option>
               <option value="outer_race" selected>🟠 แหวนรอบนอก (Outer Race Fault)</option>
@@ -252,6 +252,7 @@
               <span id="txt-sev" class="font-mono text-cyan-400 font-bold">0.75</span>
             </div>
             <input type="range" id="sld-sev" min="0.0" max="1.0" step="0.05" value="0.75" oninput="document.getElementById('txt-sev').innerText = parseFloat(this.value).toFixed(2);" class="w-full accent-[rgb(255,75,75)] cursor-pointer">
+            <span id="guardrail-note" class="text-[10px] text-amber-400 hidden">🛡️ โหมดปกติ (Healthy) ล็อกค่า Severity เป็น 0.0 เสมอ</span>
           </div>
 
           <div>
@@ -300,9 +301,9 @@
         <div>
           <div class="flex justify-between items-center text-xs mb-1">
             <span class="text-slate-400">Monte Carlo Samples:</span>
-            <span id="txt-mc" class="font-mono text-slate-300 font-bold">10</span>
+            <span id="txt-mc" class="font-mono text-slate-300 font-bold">100</span>
           </div>
-          <input type="range" id="sld-mc" min="1" max="20" step="1" value="10" oninput="document.getElementById('txt-mc').innerText = this.value;" class="w-full accent-[rgb(255,75,75)] cursor-pointer">
+          <input type="range" id="sld-mc" min="50" max="200" step="10" value="100" oninput="document.getElementById('txt-mc').innerText = this.value;" class="w-full accent-[rgb(255,75,75)] cursor-pointer">
         </div>
       </div>
 
@@ -773,10 +774,32 @@
       document.getElementById('txt-rpm').innerText = m.rated_rpm;
     }
 
+    function onFaultChange(val) {
+      const sld = document.getElementById('sld-sev');
+      const txt = document.getElementById('txt-sev');
+      const note = document.getElementById('guardrail-note');
+      if (val === 'normal') {
+        sld.value = 0.0;
+        sld.disabled = true;
+        txt.innerText = '0.00';
+        if (note) note.classList.remove('hidden');
+      } else {
+        sld.disabled = false;
+        if (parseFloat(sld.value) === 0.0) {
+          sld.value = 0.65;
+          txt.innerText = '0.65';
+        }
+        if (note) note.classList.add('hidden');
+      }
+    }
+
     function applyPreset(fault, sev) {
       document.getElementById('sel-fault').value = fault;
-      document.getElementById('sld-sev').value = sev;
-      document.getElementById('txt-sev').innerText = sev.toFixed(2);
+      onFaultChange(fault);
+      if (fault !== 'normal') {
+        document.getElementById('sld-sev').value = sev;
+        document.getElementById('txt-sev').innerText = sev.toFixed(2);
+      }
     }
 
     function switchTab(idx) {

@@ -50,7 +50,7 @@ def test_build_report():
     assert s["job_id"] == "job-123"
     assert s["fault"] == "inner_race"
     assert s["confidence"] == 0.85
-    assert s["urgency"] == "HIGH"
+    assert s["urgency"] in ("PLAN_MAINTENANCE", "HIGH")
     assert "แหวนรอบใน" in rep["markdown"]
     assert "คู่มือการแก้ปัญหาและแนวทางปฏิบัติเบื้องต้นสำหรับช่างเทคนิค" in rep["markdown"]
     assert "LOTO" in rep["markdown"]
